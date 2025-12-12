@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
+import { functionApi } from '../../services/functionApi'; // Import API
 
 interface FunctionItem {
   id: string;
@@ -31,63 +32,38 @@ export default function DashboardPage() {
     { id: '3', time: '14:20:10', type: 'pool', message: 'System: Replenishing Python Warm Pool (+1)', icon: '♻️' },
   ]);
 
-  const [functions] = useState<FunctionItem[]>([
-    {
-      id: 'fn-001',
-      name: 'image-processor',
-      language: 'Python',
-      status: 'active',
-      lastDeployed: '2시간 전',
-      invocations: 1247,
-      avgDuration: 45,
-      memory: 512,
-      warmPool: 2
-    },
-    {
-      id: 'fn-002',
-      name: 'data-analyzer',
-      language: 'C++',
-      status: 'active',
-      lastDeployed: '5시간 전',
-      invocations: 892,
-      avgDuration: 12,
-      memory: 256,
-      warmPool: 1
-    },
-    {
-      id: 'fn-003',
-      name: 'api-gateway',
-      language: 'Node.js',
-      status: 'active',
-      lastDeployed: '1일 전',
-      invocations: 5421,
-      avgDuration: 23,
-      memory: 128,
-      warmPool: 3
-    },
-    {
-      id: 'fn-004',
-      name: 'ml-inference',
-      language: 'Python',
-      status: 'deploying',
-      lastDeployed: '방금',
-      invocations: 0,
-      avgDuration: 0,
-      memory: 1024,
-      warmPool: 0
-    },
-    {
-      id: 'fn-005',
-      name: 'file-converter',
-      language: 'Go',
-      status: 'inactive',
-      lastDeployed: '3일 전',
-      invocations: 234,
-      avgDuration: 67,
-      memory: 512,
-      warmPool: 0
+  const [functions, setFunctions] = useState<FunctionItem[]>([]);
+
+  // Fetch Real Data
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const data = await functionApi.getFunctions();
+        // Transform data if backend shape differs from frontend interface
+        // Backend returns: [{ functionId, name, runtime, status, local_stats: { ... } }]
+        // Frontend expects: { id, name, language, status, lastDeployed, invocations, ... }
+
+        const transformed = data.map((d: any) => ({
+          id: d.functionId,
+          name: d.name,
+          language: d.runtime, // Map runtime 'python' -> 'Python' roughly
+          status: d.status?.toLowerCase() || 'inactive',
+          lastDeployed: d.local_stats?.lastRun ? new Date(d.local_stats.lastRun).toLocaleString() : '-',
+          invocations: d.local_stats?.calls || 0,
+          avgDuration: 0, // Not yet tracked
+          memory: 128, // Default or fetch detail
+          warmPool: 0 // Not tracked yet
+        }));
+        setFunctions(transformed);
+      } catch (e) {
+        console.error("Failed to fetch functions", e);
+      }
     }
-  ]);
+    loadData();
+    // Poll every 5s for updates
+    const poll = setInterval(loadData, 5000);
+    return () => clearInterval(poll);
+  }, []);
 
   // Auto-generate logs
   useEffect(() => {
@@ -105,7 +81,7 @@ export default function DashboardPage() {
         ][Math.floor(Math.random() * 5)],
         icon: ['🚀', '🔧', '♻️'][Math.floor(Math.random() * 3)]
       };
-      
+
       setLogs(prev => [...prev.slice(-9), newLog]);
     }, 5000);
 
@@ -143,10 +119,10 @@ export default function DashboardPage() {
   return (
     <div className="flex h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
       <Sidebar onSystemStatusClick={() => setShowLogModal(true)} />
-      
+
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
-        
+
         <main className="flex-1 overflow-y-auto relative">
           <div className="max-w-7xl mx-auto px-6 py-8">
             {/* Stats Overview */}
@@ -227,7 +203,7 @@ export default function DashboardPage() {
                     {functions.map((func) => (
                       <tr key={func.id} className="hover:bg-purple-50/50 transition-colors">
                         <td className="px-6 py-4">
-                          <Link 
+                          <Link
                             to={`/function/${func.id}`}
                             className="flex items-center gap-3 cursor-pointer group"
                           >
@@ -330,11 +306,10 @@ export default function DashboardPage() {
                         <span className="text-xs font-semibold text-gray-500" style={{ fontFamily: 'monospace' }}>
                           {log.time}
                         </span>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                          log.type === 'warm' ? 'bg-purple-100 text-purple-700' :
-                          log.type === 'tuner' ? 'bg-green-100 text-green-700' :
-                          'bg-blue-100 text-blue-700'
-                        }`}>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${log.type === 'warm' ? 'bg-purple-100 text-purple-700' :
+                            log.type === 'tuner' ? 'bg-green-100 text-green-700' :
+                              'bg-blue-100 text-blue-700'
+                          }`}>
                           {log.type === 'warm' ? 'Warm Start' : log.type === 'tuner' ? 'Auto-Tuner' : 'Pool Management'}
                         </span>
                       </div>
