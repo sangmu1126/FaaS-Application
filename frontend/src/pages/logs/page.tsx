@@ -1,0 +1,382 @@
+import { useState, useMemo } from 'react';
+import Sidebar from '../dashboard/components/Sidebar';
+import Header from '../dashboard/components/Header';
+import { useNavigate } from 'react-router-dom';
+
+interface LogEntry {
+  id: string;
+  timestamp: string;
+  functionName: string;
+  level: 'info' | 'warn' | 'error';
+  message: string;
+  duration: number;
+  requestId: string;
+}
+
+export default function LogsPage() {
+  const navigate = useNavigate();
+  const [selectedFunction, setSelectedFunction] = useState('all');
+  const [selectedLevel, setSelectedLevel] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const logsPerPage = 20;
+
+  const [logs, setLogs] = useState<LogEntry[]>([
+    {
+      id: '1',
+      timestamp: '2025-01-15 14:32:15',
+      functionName: 'image-processor',
+      level: 'info',
+      message: 'Image processing completed successfully',
+      duration: 42,
+      requestId: 'req-abc123'
+    },
+    {
+      id: '2',
+      timestamp: '2025-01-15 14:31:58',
+      functionName: 'data-analyzer',
+      level: 'info',
+      message: 'Data analysis started for dataset-001',
+      duration: 12,
+      requestId: 'req-def456'
+    },
+    {
+      id: '3',
+      timestamp: '2025-01-15 14:31:42',
+      functionName: 'api-gateway',
+      level: 'warn',
+      message: 'Rate limit approaching threshold (85%)',
+      duration: 23,
+      requestId: 'req-ghi789'
+    },
+    {
+      id: '4',
+      timestamp: '2025-01-15 14:31:20',
+      functionName: 'image-processor',
+      level: 'error',
+      message: 'Failed to process image: Invalid format',
+      duration: 45,
+      requestId: 'req-jkl012'
+    },
+    {
+      id: '5',
+      timestamp: '2025-01-15 14:30:55',
+      functionName: 'ml-inference',
+      level: 'info',
+      message: 'Model inference completed with 98.5% confidence',
+      duration: 156,
+      requestId: 'req-mno345'
+    },
+    {
+      id: '6',
+      timestamp: '2025-01-15 14:30:32',
+      functionName: 'file-converter',
+      level: 'info',
+      message: 'File conversion: PDF to PNG completed',
+      duration: 67,
+      requestId: 'req-pqr678'
+    },
+    {
+      id: '7',
+      timestamp: '2025-01-15 14:30:10',
+      functionName: 'data-analyzer',
+      level: 'warn',
+      message: 'Large dataset detected, processing may take longer',
+      duration: 15,
+      requestId: 'req-stu901'
+    },
+    {
+      id: '8',
+      timestamp: '2025-01-15 14:29:48',
+      functionName: 'api-gateway',
+      level: 'info',
+      message: 'Request routed to backend service',
+      duration: 18,
+      requestId: 'req-vwx234'
+    }
+  ]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Generate new logs
+    const newLogs: LogEntry[] = Array.from({ length: 5 }, (_, i) => ({
+      id: `log-${Date.now()}-${i}`,
+      timestamp: new Date(Date.now() - Math.random() * 60000).toLocaleString('sv-SE', { 
+        year: 'numeric', 
+        month: '2-digit', 
+        day: '2-digit', 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit' 
+      }).replace('T', ' '),
+      level: (['info', 'error', 'warn'] as const)[Math.floor(Math.random() * 3)],
+      functionName: ['image-processor', 'data-analyzer', 'api-gateway', 'ml-inference'][Math.floor(Math.random() * 4)],
+      message: [
+        'Function executed successfully',
+        'Database connection timeout',
+        'Memory usage high: 85%',
+        'Request processed in 45ms',
+        'Cache miss, fetching from database'
+      ][Math.floor(Math.random() * 5)],
+      duration: Math.floor(Math.random() * 500) + 10,
+      requestId: `req-${Math.random().toString(36).substr(2, 9)}`
+    }));
+    
+    setLogs([...newLogs, ...logs]);
+    setIsRefreshing(false);
+  };
+
+  const handleApplyFilters = () => {
+    // 필터 적용 시 첫 페이지로 이동
+    setCurrentPage(1);
+  };
+
+  const handleResetFilters = () => {
+    setSelectedFunction('all');
+    setSelectedLevel('all');
+    setCurrentPage(1);
+  };
+
+  // 필터링된 로그
+  const filteredLogs = useMemo(() => {
+    return logs.filter(log => {
+      const functionMatch = selectedFunction === 'all' || log.functionName === selectedFunction;
+      const levelMatch = selectedLevel === 'all' || log.level === selectedLevel;
+      return functionMatch && levelMatch;
+    });
+  }, [logs, selectedFunction, selectedLevel]);
+
+  // 페이지네이션 계산
+  const totalPages = Math.ceil(filteredLogs.length / logsPerPage);
+  const startIndex = (currentPage - 1) * logsPerPage;
+  const endIndex = startIndex + logsPerPage;
+  const currentLogs = filteredLogs.slice(startIndex, endIndex);
+
+  // 페이지 변경 핸들러
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  // 필터 변경 시 첫 페이지로 리셋
+  const handleFunctionChange = (value: string) => {
+    setSelectedFunction(value);
+    setCurrentPage(1);
+  };
+
+  const handleLevelChange = (value: string) => {
+    setSelectedLevel(value);
+    setCurrentPage(1);
+  };
+
+  const getLevelColor = (level: string) => {
+    const colors: Record<string, string> = {
+      'info': 'bg-blue-50 text-blue-600 border-blue-200',
+      'warn': 'bg-yellow-50 text-yellow-600 border-yellow-200',
+      'error': 'bg-red-50 text-red-600 border-red-200'
+    };
+    return colors[level] || 'bg-gray-50 text-gray-600';
+  };
+
+  const getLevelIcon = (level: string) => {
+    const icons: Record<string, string> = {
+      'info': 'ri-information-line',
+      'warn': 'ri-alert-line',
+      'error': 'ri-error-warning-line'
+    };
+    return icons[level] || 'ri-information-line';
+  };
+
+  return (
+    <div className="flex h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
+      <Sidebar />
+      
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header />
+        
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-7xl mx-auto px-6 py-8">
+            <div className="mb-6">
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">실행 로그</h1>
+              <p className="text-gray-600">모든 함수의 실행 로그를 실시간으로 확인하세요</p>
+            </div>
+
+            {/* Filters */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-purple-100 p-6 shadow-sm mb-6">
+              <div className="grid md:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">함수 선택</label>
+                  <select
+                    value={selectedFunction}
+                    onChange={(e) => handleFunctionChange(e.target.value)}
+                    className="w-full px-4 py-2 bg-white border border-purple-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all"
+                  >
+                    <option value="all">전체 함수</option>
+                    <option value="image-processor">image-processor</option>
+                    <option value="data-analyzer">data-analyzer</option>
+                    <option value="api-gateway">api-gateway</option>
+                    <option value="ml-inference">ml-inference</option>
+                    <option value="file-converter">file-converter</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">로그 레벨</label>
+                  <select
+                    value={selectedLevel}
+                    onChange={(e) => handleLevelChange(e.target.value)}
+                    className="w-full px-4 py-2 bg-white border border-purple-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all"
+                  >
+                    <option value="all">전체</option>
+                    <option value="info">Info</option>
+                    <option value="warn">Warning</option>
+                    <option value="error">Error</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">시작 시간</label>
+                  <input
+                    type="datetime-local"
+                    className="w-full px-4 py-2 bg-white border border-purple-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">종료 시간</label>
+                  <input
+                    type="datetime-local"
+                    className="w-full px-4 py-2 bg-white border border-purple-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 mt-4">
+                <button
+                  onClick={handleApplyFilters}
+                  className="px-4 py-2 bg-gradient-to-r from-purple-400 to-pink-400 text-white font-semibold rounded-xl hover:shadow-lg transition-all whitespace-nowrap cursor-pointer text-sm"
+                >
+                  필터 적용
+                </button>
+                <button
+                  onClick={handleResetFilters}
+                  className="px-4 py-2 bg-white border border-purple-200 text-gray-700 font-semibold rounded-xl hover:bg-purple-50 transition-all whitespace-nowrap cursor-pointer text-sm"
+                >
+                  초기화
+                </button>
+                <div className="flex-1"></div>
+                <button
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-purple-200 hover:bg-purple-50 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <i className={`ri-refresh-line text-gray-600 ${isRefreshing ? 'animate-spin' : ''}`}></i>
+                </button>
+              </div>
+            </div>
+
+            {/* Logs List */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-purple-100 shadow-sm">
+              <div className="px-6 py-4 border-b border-purple-100 flex items-center justify-between">
+                <h2 className="text-lg font-bold text-gray-900">로그 목록</h2>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">자동 새로고침</span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-400 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-purple-400 peer-checked:to-pink-400"></div>
+                  </label>
+                </div>
+              </div>
+
+              <div className="divide-y divide-purple-100">
+                {currentLogs.map((log) => (
+                  <div key={log.id} className="px-6 py-4 hover:bg-purple-50/30 transition-colors">
+                    <div className="flex items-start gap-4">
+                      <div className="flex-shrink-0 mt-1">
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center border ${getLevelColor(log.level)}`}>
+                          <i className={`${getLevelIcon(log.level)} text-sm`}></i>
+                        </div>
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className="text-sm font-mono text-gray-500">{log.timestamp}</span>
+                          <span className="text-sm font-semibold text-gray-900">{log.functionName}</span>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getLevelColor(log.level)}`}>
+                            {log.level.toUpperCase()}
+                          </span>
+                          <span className="text-xs text-gray-500">{log.duration}ms</span>
+                        </div>
+                        <p className="text-sm text-gray-700 mb-2">{log.message}</p>
+                        <div className="flex items-center gap-4 text-xs text-gray-500">
+                          <span>Request ID: {log.requestId}</span>
+                          <button className="text-purple-600 hover:text-purple-700 font-medium cursor-pointer">
+                            자세히 보기
+                          </button>
+                        </div>
+                      </div>
+
+                      <button className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-xl hover:bg-purple-50 transition-colors cursor-pointer">
+                        <i className="ri-more-2-fill text-gray-600"></i>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="px-6 py-4 border-t border-purple-100 flex items-center justify-between">
+                <span className="text-sm text-gray-600">총 {filteredLogs.length}개의 로그</span>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={handlePreviousPage}
+                    disabled={currentPage === 1}
+                    className={`px-3 py-1.5 bg-white border border-purple-200 text-gray-700 rounded-xl transition-all text-sm font-medium whitespace-nowrap cursor-pointer ${
+                      currentPage === 1 
+                        ? 'opacity-50 cursor-not-allowed' 
+                        : 'hover:bg-purple-50'
+                    }`}
+                  >
+                    이전
+                  </button>
+                  <span className="text-sm text-gray-600">{currentPage} / {totalPages}</span>
+                  <button 
+                    onClick={handleNextPage}
+                    disabled={currentPage === totalPages}
+                    className={`px-3 py-1.5 bg-white border border-purple-200 text-gray-700 rounded-xl transition-all text-sm font-medium whitespace-nowrap cursor-pointer ${
+                      currentPage === totalPages 
+                        ? 'opacity-50 cursor-not-allowed' 
+                        : 'hover:bg-purple-50'
+                    }`}
+                  >
+                    다음
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .animate-spin {
+          animation: spin 1s linear infinite;
+        }
+      `}</style>
+    </div>
+  );
+}
