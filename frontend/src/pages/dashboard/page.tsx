@@ -30,6 +30,7 @@ export default function DashboardPage() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
   const [functions, setFunctions] = useState<FunctionItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // Fetch Real Data
   useEffect(() => {
@@ -37,25 +38,29 @@ export default function DashboardPage() {
       try {
         const data = await functionApi.getFunctions();
 
-        // Sort by uploadedAt (descending) BEFORE formatting
         const sortedData = data.sort((a: any, b: any) =>
           new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
         );
 
-        const transformed = sortedData.map((d: any) => ({
-          id: d.functionId,
-          name: d.name,
-          language: d.runtime,
-          status: 'active' as 'active' | 'inactive' | 'deploying', // If it's in the list, it is deployed and ready
-          lastDeployed: d.uploadedAt ? new Date(d.uploadedAt).toLocaleString() : '-',
-          invocations: 0, // Not provided by list API yet
-          avgDuration: 0,
-          memory: d.memoryMb || 128,
-          warmPool: 0
-        }));
-        setFunctions(transformed);
+        const transformedWithMetrics = sortedData.map((d: any) => {
+          return {
+            id: d.functionId,
+            name: d.name,
+            language: d.runtime,
+            status: 'active' as 'active' | 'inactive' | 'deploying',
+            lastDeployed: d.uploadedAt ? new Date(d.uploadedAt).toLocaleString() : '-',
+            invocations: d.invocations || 0, // Real data from DynamoDB
+            avgDuration: 0,
+            memory: d.memoryMb || 128,
+            warmPool: 0
+          };
+        });
+
+        setFunctions(transformedWithMetrics);
       } catch (e) {
         console.error("Failed to fetch functions", e);
+      } finally {
+        setLoading(false);
       }
     }
     loadData();
@@ -141,7 +146,7 @@ export default function DashboardPage() {
                   </div>
                   <span className="text-xs text-gray-500">전체</span>
                 </div>
-                <div className="text-3xl font-bold text-gray-900 mb-1">5</div>
+                <div className="text-3xl font-bold text-gray-900 mb-1">{functions.filter(f => f.status === 'active').length}</div>
                 <div className="text-sm text-gray-600">활성 함수</div>
               </div>
 
@@ -155,7 +160,9 @@ export default function DashboardPage() {
                     12%
                   </span>
                 </div>
-                <div className="text-3xl font-bold text-gray-900 mb-1">7.8K</div>
+                <div className="text-3xl font-bold text-gray-900 mb-1">
+                  {functions.reduce((acc, curr) => acc + curr.invocations, 0).toLocaleString()}
+                </div>
                 <div className="text-sm text-gray-600">총 실행 횟수</div>
               </div>
 
@@ -169,7 +176,11 @@ export default function DashboardPage() {
                     8%
                   </span>
                 </div>
-                <div className="text-3xl font-bold text-gray-900 mb-1">28ms</div>
+                <div className="text-3xl font-bold text-gray-900 mb-1">
+                  {functions.length > 0
+                    ? Math.round(functions.reduce((acc, curr) => acc + curr.avgDuration, 0) / functions.length)
+                    : 0}ms
+                </div>
                 <div className="text-sm text-gray-600">평균 응답 시간</div>
               </div>
 
@@ -194,75 +205,118 @@ export default function DashboardPage() {
 
             {/* Functions Table */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-6">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">함수명</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">상태</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">언어</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">메모리</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">마지막 배포</th>
-                      <th className="px-6 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">작업</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {functions.map((func) => (
-                      <tr key={func.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4">
-                          <Link
-                            to={`/function/${func.id}`}
-                            className="flex items-center gap-3 cursor-pointer group"
-                          >
-                            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-                              <i className="ri-function-line text-white"></i>
-                            </div>
-                            <div>
-                              <div className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
-                                {func.name}
-                              </div>
-                              <div className="text-xs text-gray-500">{func.id}</div>
-                            </div>
-                          </Link>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <i className={`${getLanguageIcon(func.language)} text-lg text-gray-600`}></i>
-                            <span className="text-sm text-gray-700">{func.language}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-sm text-gray-700">{func.memory}MB</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(func.status)}`}>
-                            {func.status === 'deploying' && (
-                              <i className="ri-loader-4-line animate-spin"></i>
-                            )}
-                            {getStatusText(func.status)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-sm text-gray-600">{func.lastDeployed}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center justify-end gap-2">
-                            <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-purple-50 transition-colors cursor-pointer">
-                              <i className="ri-play-line text-gray-600"></i>
-                            </button>
-                            <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-purple-50 transition-colors cursor-pointer">
-                              <i className="ri-settings-3-line text-gray-600"></i>
-                            </button>
-                            <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 transition-colors cursor-pointer">
-                              <i className="ri-delete-bin-line text-red-600"></i>
-                            </button>
-                          </div>
-                        </td>
+              {loading ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="w-10 h-10 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mb-4"></div>
+                  <p className="text-gray-500">함수 목록을 불러오는 중...</p>
+                </div>
+              ) : functions.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                    <i className="ri-function-line text-3xl text-gray-400"></i>
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">배포된 함수가 없습니다</h3>
+                  <p className="text-gray-500 mb-6 max-w-sm">
+                    아직 배포된 함수가 없습니다. 새로운 함수를 배포하여 Serverless 환경을 경험해보세요.
+                  </p>
+                  <Link to="/deploy" className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl hover:shadow-lg transition-all flex items-center gap-2">
+                    <i className="ri-rocket-line"></i>
+                    함수 배포하기
+                  </Link>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">함수명</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">상태</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">언어</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">메모리</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">마지막 배포</th>
+                        <th className="px-6 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">작업</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {functions.map((func) => (
+                        <tr key={func.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-6 py-4">
+                            <Link
+                              to={`/function/${func.id}`}
+                              className="flex items-center gap-3 cursor-pointer group"
+                            >
+                              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                                <i className="ri-function-line text-white"></i>
+                              </div>
+                              <div>
+                                <div className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                                  {func.name}
+                                </div>
+                                <div className="text-xs text-gray-500">{func.id.substring(0, 8)}...</div>
+                              </div>
+                            </Link>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <i className={`${getLanguageIcon(func.language)} text-lg text-gray-600`}></i>
+                              <span className="text-sm text-gray-700">{func.language}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="text-sm text-gray-700">{func.memory}MB</span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(func.status)}`}>
+                              {func.status === 'deploying' && (
+                                <i className="ri-loader-4-line animate-spin"></i>
+                              )}
+                              {getStatusText(func.status)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="text-sm text-gray-600">{func.lastDeployed}</span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center justify-end gap-2">
+                              <Link
+                                to={`/function/${func.id}`}
+                                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-green-50 text-gray-600 hover:text-green-600 transition-colors cursor-pointer"
+                                title="실행"
+                              >
+                                <i className="ri-play-circle-line text-xl"></i>
+                              </Link>
+                              <Link
+                                to={`/function/${func.id}`}
+                                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-purple-50 text-gray-600 hover:text-purple-600 transition-colors cursor-pointer"
+                                title="설정"
+                              >
+                                <i className="ri-settings-3-line text-xl"></i>
+                              </Link>
+                              <button
+                                onClick={async (e) => {
+                                  e.preventDefault();
+                                  if (window.confirm('정말 삭제하시겠습니까?')) {
+                                    try {
+                                      await functionApi.deleteFunction(func.id);
+                                      setFunctions(prev => prev.filter(f => f.id !== func.id));
+                                    } catch (err) {
+                                      alert('삭제 실패');
+                                    }
+                                  }
+                                }}
+                                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-gray-600 hover:text-red-600 transition-colors cursor-pointer"
+                                title="삭제"
+                              >
+                                <i className="ri-delete-bin-line text-xl"></i>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
 
             {/* System Live Log - Below Functions List */}
