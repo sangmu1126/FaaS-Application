@@ -40,9 +40,6 @@ export default function DashboardPage() {
     async function loadData() {
       try {
         const data = await functionApi.getFunctions();
-        // Transform data if backend shape differs from frontend interface
-        // Backend returns: [{ functionId, name, runtime, status, local_stats: { ... } }]
-        // Frontend expects: { id, name, language, status, lastDeployed, invocations, ... }
 
         const transformed = data.map((d: any) => ({
           id: d.functionId,
@@ -70,10 +67,7 @@ export default function DashboardPage() {
   useEffect(() => {
     async function fetchLogs() {
       try {
-        // Fetch raw logs
-        // Note: Controller returns raw array of objects
         const rawLogs = await logApi.getLogs();
-        // Check if rawLogs is array or wrapped
         const logData = Array.isArray(rawLogs) ? rawLogs : (rawLogs as any).logs || [];
 
         // Transform to frontend format
@@ -99,9 +93,13 @@ export default function DashboardPage() {
   const getLanguageIcon = (language: string) => {
     const icons: Record<string, string> = {
       'Python': 'ri-python-line',
+      'python': 'ri-python-line',
       'Node.js': 'ri-nodejs-line',
+      'nodejs': 'ri-nodejs-line',
       'C++': 'ri-terminal-box-line',
-      'Go': 'ri-code-s-slash-line'
+      'cpp': 'ri-terminal-box-line',
+      'Go': 'ri-code-s-slash-line',
+      'go': 'ri-code-s-slash-line'
     };
     return icons[language] || 'ri-code-line';
   };
