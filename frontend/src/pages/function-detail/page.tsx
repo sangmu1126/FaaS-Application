@@ -22,176 +22,75 @@ export default function FunctionDetailPage() {
   const [showOptimizationToast, setShowOptimizationToast] = useState(false);
   const [activeTestTab, setActiveTestTab] = useState<'input' | 'result' | 'advanced'>('input');
 
-  const functionData = {
-    id: 'fn-001',
-    name: 'image-processor',
-    language: 'Python',
-    runtime: 'python3.11',
-    status: 'active',
-    memory: 512,
-    timeout: 30,
-    lastDeployed: '2시간 전',
-    endpoint: 'https://api.nanogrid.io/fn-001'
-  };
+  const [functionItem, setFunctionItem] = useState<any>(null);
+  const [metrics, setMetrics] = useState<any>(null);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const metrics = {
-    invocations: 1247,
-    avgDuration: 45,
-    coldStarts: 0,
-    errors: 3,
-    successRate: 99.76
-  };
+  useEffect(() => {
+    async function loadData() {
+      if (!id) return;
+      try {
+        setLoading(true);
+        const [fnData, metricsData, logsData] = await Promise.all([
+          functionApi.getFunction(id),
+          functionApi.getMetrics(id),
+          logApi.getFunctionLogs(id)
+        ]);
 
-  const recentInvocations = [
-    { id: '1', timestamp: '2분 전', duration: 42, status: 'success', memory: 487 },
-    { id: '2', timestamp: '5분 전', duration: 38, status: 'success', memory: 492 },
-    { id: '3', timestamp: '8분 전', duration: 51, status: 'success', memory: 501 },
-    { id: '4', timestamp: '12분 전', duration: 45, status: 'error', memory: 498 },
-    { id: '5', timestamp: '15분 전', duration: 39, status: 'success', memory: 485 }
-  ];
-
-  const mockLogs = [
-    {
-      id: '1',
-      timestamp: '2025-01-15 14:32:15',
-      level: 'info',
-      message: 'Image processing completed successfully',
-      requestId: 'req-abc123'
-    },
-    {
-      id: '2',
-      timestamp: '2025-01-15 14:31:58',
-      level: 'info',
-      message: 'Processing started for image: photo_001.jpg',
-      requestId: 'req-abc122'
-    },
-    {
-      id: '3',
-      timestamp: '2025-01-15 14:31:42',
-      level: 'warning',
-      message: 'Image size exceeds recommended limit (5MB)',
-      requestId: 'req-abc121'
-    },
-    {
-      id: '4',
-      timestamp: '2025-01-15 14:31:20',
-      level: 'error',
-      message: 'Failed to process image: Invalid format',
-      requestId: 'req-abc120'
-    },
-    {
-      id: '5',
-      timestamp: '2025-01-15 14:30:55',
-      level: 'info',
-      message: 'Image resized to 1920x1080',
-      requestId: 'req-abc119'
-    },
-    {
-      id: '6',
-      timestamp: '2025-01-15 14:30:30',
-      level: 'info',
-      message: 'Function invoked successfully',
-      requestId: 'req-abc118'
-    },
-    {
-      id: '7',
-      timestamp: '2025-01-15 14:30:10',
-      level: 'info',
-      message: 'Image uploaded to storage',
-      requestId: 'req-abc117'
-    },
-    {
-      id: '8',
-      timestamp: '2025-01-15 14:29:45',
-      level: 'warning',
-      message: 'Slow network detected',
-      requestId: 'req-abc116'
-    },
-    {
-      id: '9',
-      timestamp: '2025-01-15 14:29:20',
-      level: 'info',
-      message: 'Processing completed',
-      requestId: 'req-abc115'
-    },
-    {
-      id: '10',
-      timestamp: '2025-01-15 14:29:00',
-      level: 'info',
-      message: 'Function started',
-      requestId: 'req-abc114'
-    },
-    {
-      id: '11',
-      timestamp: '2025-01-15 14:28:40',
-      level: 'error',
-      message: 'Connection timeout',
-      requestId: 'req-abc113'
-    },
-    {
-      id: '12',
-      timestamp: '2025-01-15 14:28:20',
-      level: 'info',
-      message: 'Image validated',
-      requestId: 'req-abc112'
-    },
-    {
-      id: '13',
-      timestamp: '2025-01-15 14:28:00',
-      level: 'info',
-      message: 'Processing queue: 3 items',
-      requestId: 'req-abc111'
-    },
-    {
-      id: '14',
-      timestamp: '2025-01-15 14:27:40',
-      level: 'warning',
-      message: 'High memory usage detected',
-      requestId: 'req-abc110'
-    },
-    {
-      id: '15',
-      timestamp: '2025-01-15 14:27:20',
-      level: 'info',
-      message: 'Image compression applied',
-      requestId: 'req-abc109'
-    },
-    {
-      id: '16',
-      timestamp: '2025-01-15 14:27:00',
-      level: 'info',
-      message: 'Function execution completed',
-      requestId: 'req-abc108'
-    },
-    {
-      id: '17',
-      timestamp: '2025-01-15 14:26:40',
-      level: 'info',
-      message: 'Image metadata extracted',
-      requestId: 'req-abc107'
-    },
-    {
-      id: '18',
-      timestamp: '2025-01-15 14:26:20',
-      level: 'error',
-      message: 'Invalid image format detected',
-      requestId: 'req-abc106'
-    },
-    {
-      id: '19',
-      timestamp: '2025-01-15 14:26:00',
-      level: 'info',
-      message: 'Processing started',
-      requestId: 'req-abc105'
-    },
-    {
-      id: '20',
-      timestamp: '2025-01-15 14:25:40',
-      level: 'info',
-      message: 'Function initialized',
-      requestId: 'req-abc104'
+        setFunctionItem(fnData);
+        setMetrics(metricsData);
+        setLogs(logsData);
+      } catch (error) {
+        console.error('Failed to load function details:', error);
+      } finally {
+        setLoading(false);
+      }
     }
-  ];
+
+    loadData();
+
+    // Auto refresh every 5 seconds if enabled
+    let interval: NodeJS.Timeout;
+    if (autoRefresh) {
+      interval = setInterval(loadData, 5000);
+    }
+    return () => clearInterval(interval);
+  }, [id, autoRefresh]);
+
+  // Derived data
+  const recentInvocations = logs.slice(0, 5).map(log => ({
+    id: log.id,
+    timestamp: new Date(log.timestamp).toLocaleTimeString(),
+    duration: log.duration,
+    status: log.status,
+    memory: log.memory
+  }));
+
+  const functionData = functionItem ? {
+    id: functionItem.id,
+    name: functionItem.name,
+    language: functionItem.language,
+    runtime: functionItem.runtime,
+    status: functionItem.status,
+    memory: functionItem.memory,
+    timeout: functionItem.timeout,
+    lastDeployed: new Date(functionItem.createdAt).toLocaleDateString(),
+    endpoint: functionItem.endpoint || `https://api.nanogrid.io/${functionItem.id}`
+  } : null;
+
+  if (loading && !functionItem) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-4 mx-auto"></div>
+          <p className="text-gray-600 font-medium">함수 정보를 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!functionData || !metrics) return null;
 
   const tabs = [
     { id: 'overview', label: '개요', icon: 'ri-dashboard-line' },
@@ -240,23 +139,25 @@ export default function FunctionDetailPage() {
 
       // Unifying format (Controller returns { statusCode, body } usually)
       // Check if result has standard structure or raw
-      const isSuccess = result.statusCode >= 200 && result.statusCode < 300;
+      const isSuccess = result.status === 'SUCCESS' || (result.statusCode >= 200 && result.statusCode < 300);
 
       setTestResult({
         status: isSuccess ? 'success' : 'error',
         success: isSuccess,
-        statusCode: result.statusCode || 200,
-        body: result.body,
+        statusCode: result.statusCode || (result.exitCode === 0 ? 200 : 500),
+        body: result.stdout || result.body,
         output: JSON.stringify(result, null, 2),
         executionTime,
-        responseTime: executionTime, // Approximation
-        memoryUsed: 128, // Not returned by sync run yet, mocking for now
-        memoryAllocated: 512,
-        cpuUsage: 20,
+        responseTime: result.durationMs || executionTime,
+        memoryUsed: result.peakMemoryBytes ? Math.round(result.peakMemoryBytes / 1024 / 1024) : 0,
+        memoryAllocated: result.allocatedMemoryMb || 512,
+        cpuUsage: 0, // Not currently returned by worker
         networkRx: 0,
         networkTx: 0,
         diskRead: 0,
-        diskWrite: 0
+        diskWrite: 0,
+        optimizationTip: result.optimizationTip,
+        estimatedSavings: result.estimatedSavings
       });
 
     } catch (error: any) {
@@ -285,13 +186,29 @@ export default function FunctionDetailPage() {
     const hasDiskActivity = testResult.diskRead > 0 || testResult.diskWrite > 0;
 
     let diagnosis = {
-      status: 'optimal' as 'optimal' | 'warning' | 'critical',
+      status: 'optimal' as 'optimal' | 'warning' | 'critical' | 'tip',
       title: '',
       message: '',
       recommendation: '',
       savings: 0,
       insight: ''
     };
+
+    // 1. Backend-driven Diagnosis (Prioritize this)
+    if (testResult.optimizationTip) {
+      // Detect if it is a "Tip" (Optimization available) vs "Warning" (Risk)
+      const isWarning = testResult.optimizationTip.toLowerCase().includes("warning");
+
+      diagnosis = {
+        status: isWarning ? 'warning' : 'tip', // Use 'tip' for improvements
+        title: isWarning ? '메모리 부족 경고' : '비용 절감 팁 (Auto-Tuner)',
+        message: testResult.optimizationTip.replace("💡 Tip: ", "").replace("⚠️ Warning: ", ""),
+        recommendation: testResult.estimatedSavings || '메모리 설정 최적화 권장',
+        savings: testResult.estimatedSavings ? parseInt(testResult.estimatedSavings.replace(/[^0-9]/g, '')) : 0,
+        insight: testResult.optimizationTip
+      };
+      return diagnosis;
+    }
 
     // 진단 로직
     if (memoryUsagePercent < 30 && cpuUsage > 60) {
@@ -356,8 +273,8 @@ export default function FunctionDetailPage() {
   const analysis = testResult ? getAutoTunerAnalysis() : null;
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
-      <Sidebar />
+    <div className="flex h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-gray-100">
+      <Sidebar onSystemStatusClick={() => { }} />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
@@ -365,12 +282,12 @@ export default function FunctionDetailPage() {
         <main className="flex-1 overflow-y-auto">
           <div className="max-w-7xl mx-auto px-6 py-8">
             {/* Function Header */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-purple-100 p-6 mb-6 shadow-sm">
+            <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-gray-200 p-6 mb-6 shadow-sm">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <button
                     onClick={() => navigate('/dashboard')}
-                    className="w-10 h-10 flex items-center justify-center bg-purple-50 border border-purple-200 text-purple-600 rounded-xl hover:bg-purple-100 transition-all cursor-pointer"
+                    className="w-10 h-10 flex items-center justify-center bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all cursor-pointer"
                   >
                     <i className="ri-arrow-left-line text-lg"></i>
                   </button>
@@ -382,7 +299,7 @@ export default function FunctionDetailPage() {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setShowTestModal(true)}
-                    className="px-4 py-2 bg-gradient-to-r from-purple-400 to-pink-400 text-white font-semibold rounded-xl hover:shadow-lg transition-all whitespace-nowrap cursor-pointer flex items-center gap-2"
+                    className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all whitespace-nowrap cursor-pointer flex items-center gap-2"
                   >
                     <i className="ri-play-circle-line"></i>
                     테스트 실행
@@ -395,7 +312,7 @@ export default function FunctionDetailPage() {
                         }
                       }
                     })}
-                    className="px-4 py-2 bg-white border border-purple-200 text-gray-700 font-semibold rounded-xl hover:bg-purple-50 transition-all whitespace-nowrap cursor-pointer flex items-center gap-2"
+                    className="px-4 py-2 bg-white border border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-all whitespace-nowrap cursor-pointer flex items-center gap-2"
                   >
                     <i className="ri-upload-cloud-line"></i>
                     재배포
@@ -405,15 +322,15 @@ export default function FunctionDetailPage() {
             </div>
 
             {/* Tabs */}
-            <div className="border-b border-purple-200 mb-6">
+            <div className="border-b border-gray-200 mb-6">
               <div className="flex gap-1">
                 {tabs.map((tab) => (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
                     className={`px-4 py-3 font-medium text-sm transition-all cursor-pointer flex items-center gap-2 rounded-t-xl ${activeTab === tab.id
-                      ? 'text-purple-600 bg-white border-b-2 border-purple-600'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
+                      ? 'text-blue-600 bg-white border-b-2 border-blue-600'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                       }`}
                   >
                     <i className={tab.icon}></i>
@@ -428,23 +345,23 @@ export default function FunctionDetailPage() {
               <div className="space-y-6">
                 {/* Quick Stats */}
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-purple-100 shadow-sm">
+                  <div className="bg-white/60 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-sm">
                     <div className="text-sm text-gray-600 mb-2">총 실행 횟수</div>
                     <div className="text-3xl font-bold text-gray-900">{metrics.invocations.toLocaleString()}</div>
                   </div>
-                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-purple-100 shadow-sm">
+                  <div className="bg-white/60 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-sm">
                     <div className="text-sm text-gray-600 mb-2">평균 응답 시간</div>
                     <div className="text-3xl font-bold text-gray-900">{metrics.avgDuration}ms</div>
                   </div>
-                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-purple-100 shadow-sm">
+                  <div className="bg-white/60 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-sm">
                     <div className="text-sm text-gray-600 mb-2">Cold Start</div>
-                    <div className="text-3xl font-bold text-purple-600">{metrics.coldStarts}ms</div>
+                    <div className="text-3xl font-bold text-blue-600">{metrics.coldStarts}ms</div>
                   </div>
-                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-purple-100 shadow-sm">
+                  <div className="bg-white/60 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-sm">
                     <div className="text-sm text-gray-600 mb-2">에러 발생</div>
                     <div className="text-3xl font-bold text-red-600">{metrics.errors}</div>
                   </div>
-                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-purple-100 shadow-sm">
+                  <div className="bg-white/60 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-sm">
                     <div className="text-sm text-gray-600 mb-2">성공률</div>
                     <div className="text-3xl font-bold text-green-600">{metrics.successRate}%</div>
                   </div>
@@ -452,22 +369,22 @@ export default function FunctionDetailPage() {
 
                 {/* Function Info */}
                 <div className="grid md:grid-cols-2 gap-6">
-                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-purple-100 p-6 shadow-sm">
+                  <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-gray-200 p-6 shadow-sm">
                     <h3 className="text-lg font-bold text-gray-900 mb-4">함수 정보</h3>
                     <div className="space-y-3">
-                      <div className="flex justify-between py-2 border-b border-purple-100">
+                      <div className="flex justify-between py-2 border-b border-gray-200">
                         <span className="text-sm text-gray-600">언어</span>
                         <span className="text-sm font-medium text-gray-900">{functionData.language}</span>
                       </div>
-                      <div className="flex justify-between py-2 border-b border-purple-100">
+                      <div className="flex justify-between py-2 border-b border-gray-200">
                         <span className="text-sm text-gray-600">런타임</span>
                         <span className="text-sm font-medium text-gray-900">{functionData.runtime}</span>
                       </div>
-                      <div className="flex justify-between py-2 border-b border-purple-100">
+                      <div className="flex justify-between py-2 border-b border-gray-200">
                         <span className="text-sm text-gray-600">메모리</span>
                         <span className="text-sm font-medium text-gray-900">{functionData.memory} MB</span>
                       </div>
-                      <div className="flex justify-between py-2 border-b border-purple-100">
+                      <div className="flex justify-between py-2 border-b border-gray-200">
                         <span className="text-sm text-gray-600">타임아웃</span>
                         <span className="text-sm font-medium text-gray-900">{functionData.timeout}초</span>
                       </div>
@@ -478,9 +395,9 @@ export default function FunctionDetailPage() {
                     </div>
                   </div>
 
-                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-purple-100 p-6 shadow-sm">
+                  <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-gray-200 p-6 shadow-sm">
                     <h3 className="text-lg font-bold text-gray-900 mb-4">엔드포인트</h3>
-                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 mb-4 border border-purple-100">
+                    <div className="bg-gradient-to-br from-blue-50 to-gray-50 rounded-xl p-4 mb-4 border border-gray-200">
                       <div className="flex items-center justify-between">
                         <code className="text-sm text-gray-700 break-all">{functionData.endpoint}</code>
                         <button className="ml-3 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white transition-colors cursor-pointer flex-shrink-0">
@@ -491,7 +408,7 @@ export default function FunctionDetailPage() {
                     <div className="space-y-2">
                       <div className="text-sm text-gray-600">요청 예시:</div>
                       <div className="bg-gray-900 rounded-xl p-4 font-mono text-xs text-gray-100">
-                        <div className="text-purple-400">curl</div>
+                        <div className="text-blue-400">curl</div>
                         <div className="text-gray-300 ml-2">-X POST \</div>
                         <div className="text-gray-300 ml-2">{functionData.endpoint} \</div>
                         <div className="text-gray-300 ml-2">-H "Content-Type: application/json" \</div>
@@ -502,7 +419,7 @@ export default function FunctionDetailPage() {
                 </div>
 
                 {/* Auto-Tuner Recommendation */}
-                <div className="bg-gradient-to-r from-purple-400 via-pink-400 to-rose-400 rounded-2xl p-6 text-white shadow-lg">
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white shadow-lg">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-3">
@@ -515,19 +432,19 @@ export default function FunctionDetailPage() {
                       <div className="flex items-center gap-4">
                         <button
                           onClick={() => setShowOptimizationToast(true)}
-                          className="px-6 py-2.5 bg-white text-purple-600 font-semibold rounded-xl hover:shadow-lg transition-all whitespace-nowrap cursor-pointer"
+                          className="px-6 py-2.5 bg-white text-blue-600 font-semibold rounded-xl hover:shadow-lg transition-all whitespace-nowrap cursor-pointer"
                         >
                           추천 적용하기
                         </button>
                         <button
                           onClick={() => setShowTestModal(true)}
-                          className="px-6 py-2.5 bg-white/20 backdrop-blur-sm text-white font-semibold rounded-xl hover:bg-white/30 transition-all whitespace-nowrap cursor-pointer border border-white/30"
+                          className="px-6 py-2.5 bg-white/10 backdrop-blur-md text-white font-semibold rounded-xl hover:bg-white/30 transition-all whitespace-nowrap cursor-pointer border border-white/30"
                         >
                           자세히 보기
                         </button>
                       </div>
                     </div>
-                    <div className="ml-6 bg-white/20 backdrop-blur-sm rounded-xl p-4 border border-white/30">
+                    <div className="ml-6 bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/30">
                       <div className="text-center">
                         <div className="text-3xl font-bold mb-1">50%</div>
                         <div className="text-sm text-white/90">예상 절감</div>
@@ -537,13 +454,13 @@ export default function FunctionDetailPage() {
                 </div>
 
                 {/* Recent Invocations */}
-                <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-purple-100 shadow-sm">
-                  <div className="px-6 py-4 border-b border-purple-100">
+                <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-gray-200 shadow-sm">
+                  <div className="px-6 py-4 border-b border-gray-200">
                     <h3 className="text-lg font-bold text-gray-900">최근 실행 내역</h3>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full">
-                      <thead className="bg-purple-50/50 border-b border-purple-100">
+                      <thead className="bg-gray-50/50 border-b border-gray-200">
                         <tr>
                           <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">시간</th>
                           <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">응답 시간</th>
@@ -551,9 +468,9 @@ export default function FunctionDetailPage() {
                           <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">상태</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-purple-100">
+                      <tbody className="divide-y divide-gray-200">
                         {recentInvocations.map((inv) => (
-                          <tr key={inv.id} className="hover:bg-purple-50/30 transition-colors">
+                          <tr key={inv.id} className="hover:bg-gray-50/50 transition-colors">
                             <td className="px-6 py-4 text-sm text-gray-700">{inv.timestamp}</td>
                             <td className="px-6 py-4 text-sm text-gray-700">{inv.duration}ms</td>
                             <td className="px-6 py-4 text-sm text-gray-700">{inv.memory} MB</td>
@@ -578,14 +495,14 @@ export default function FunctionDetailPage() {
             {activeTab === 'metrics' && (
               <div className="space-y-6">
                 {/* Time Range Selector */}
-                <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-purple-100 p-4 shadow-sm">
+                <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-gray-200 p-4 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setSelectedTimeRange('1h')}
                         className={`px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${selectedTimeRange === '1h'
-                          ? 'bg-gradient-to-r from-purple-400 to-pink-400 text-white'
-                          : 'bg-white border border-purple-200 text-gray-700 hover:bg-purple-50'
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white'
+                          : 'bg-white border border-purple-200 text-gray-700 hover:bg-gray-50'
                           }`}
                       >
                         1시간
@@ -593,7 +510,7 @@ export default function FunctionDetailPage() {
                       <button
                         onClick={() => setSelectedTimeRange('24h')}
                         className={`px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${selectedTimeRange === '24h'
-                          ? 'bg-gradient-to-r from-purple-400 to-pink-400 text-white'
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white'
                           : 'bg-white border border-purple-200 text-gray-700 hover:bg-purple-50'
                           }`}
                       >
@@ -602,7 +519,7 @@ export default function FunctionDetailPage() {
                       <button
                         onClick={() => setSelectedTimeRange('7d')}
                         className={`px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${selectedTimeRange === '7d'
-                          ? 'bg-gradient-to-r from-purple-400 to-pink-400 text-white'
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white'
                           : 'bg-white border border-purple-200 text-gray-700 hover:bg-purple-50'
                           }`}
                       >
@@ -611,7 +528,7 @@ export default function FunctionDetailPage() {
                       <button
                         onClick={() => setSelectedTimeRange('30d')}
                         className={`px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${selectedTimeRange === '30d'
-                          ? 'bg-gradient-to-r from-purple-400 to-pink-400 text-white'
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white'
                           : 'bg-white border border-purple-200 text-gray-700 hover:bg-purple-50'
                           }`}
                       >
@@ -626,16 +543,16 @@ export default function FunctionDetailPage() {
 
                 {/* Performance Metrics */}
                 <div className="grid md:grid-cols-2 gap-6">
-                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-purple-100 p-6 shadow-sm">
+                  <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-gray-200 p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-bold text-gray-900">실행 횟수</h3>
-                      <i className="ri-bar-chart-line text-2xl text-purple-600"></i>
+                      <i className="ri-bar-chart-line text-2xl text-blue-600"></i>
                     </div>
                     <div className="h-64 flex items-end justify-between gap-2">
                       {[120, 145, 98, 167, 189, 156, 201, 178, 145, 167, 189, 201].map((value, idx) => (
                         <div key={idx} className="flex-1 flex flex-col items-center gap-2">
                           <div
-                            className="w-full bg-gradient-to-t from-purple-400 to-pink-400 rounded-t-lg transition-all hover:opacity-80"
+                            className="w-full bg-gradient-to-t from-blue-400 to-indigo-400 rounded-t-lg transition-all hover:opacity-80"
                             style={{ height: `${(value / 201) * 100}%` }}
                           ></div>
                           <span className="text-xs text-gray-500">{idx + 1}h</span>
@@ -644,10 +561,10 @@ export default function FunctionDetailPage() {
                     </div>
                   </div>
 
-                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-purple-100 p-6 shadow-sm">
+                  <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-gray-200 p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-bold text-gray-900">응답 시간</h3>
-                      <i className="ri-time-line text-2xl text-purple-600"></i>
+                      <i className="ri-time-line text-2xl text-blue-600"></i>
                     </div>
                     <div className="h-64 flex items-end justify-between gap-2">
                       {[42, 38, 51, 45, 39, 47, 43, 41, 46, 44, 40, 45].map((value, idx) => (
@@ -665,7 +582,7 @@ export default function FunctionDetailPage() {
 
                 {/* Detailed Stats */}
                 <div className="grid md:grid-cols-3 gap-6">
-                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-purple-100 p-6 shadow-sm">
+                  <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-gray-200 p-6 shadow-sm">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="w-12 h-12 bg-gradient-to-br from-green-100 to-green-200 rounded-xl flex items-center justify-center">
                         <i className="ri-check-line text-2xl text-green-600"></i>
@@ -687,7 +604,7 @@ export default function FunctionDetailPage() {
                     </div>
                   </div>
 
-                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-purple-100 p-6 shadow-sm">
+                  <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-gray-200 p-6 shadow-sm">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="w-12 h-12 bg-gradient-to-br from-orange-100 to-orange-200 rounded-xl flex items-center justify-center">
                         <i className="ri-database-2-line text-2xl text-orange-600"></i>
@@ -709,10 +626,10 @@ export default function FunctionDetailPage() {
                     </div>
                   </div>
 
-                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-purple-100 p-6 shadow-sm">
+                  <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-gray-200 p-6 shadow-sm">
                     <div className="flex items-center gap-3 mb-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-purple-200 rounded-xl flex items-center justify-center">
-                        <i className="ri-flashlight-line text-2xl text-purple-600"></i>
+                      <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl flex items-center justify-center">
+                        <i className="ri-flashlight-line text-2xl text-blue-600"></i>
                       </div>
                       <div>
                         <div className="text-sm text-gray-600">Cold Start</div>
@@ -733,14 +650,14 @@ export default function FunctionDetailPage() {
                 </div>
 
                 {/* Cost Analysis */}
-                <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-purple-100 p-6 shadow-sm">
+                <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-gray-200 p-6 shadow-sm">
                   <h3 className="text-lg font-bold text-gray-900 mb-4">비용 분석</h3>
                   <div className="grid md:grid-cols-4 gap-4">
-                    <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border border-purple-100">
+                    <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-gray-50 rounded-xl border border-gray-200">
                       <div className="text-sm text-gray-600 mb-1">이번 달</div>
                       <div className="text-2xl font-bold text-gray-900">$24.50</div>
                     </div>
-                    <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border border-purple-100">
+                    <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-gray-200">
                       <div className="text-sm text-gray-600 mb-1">지난 달</div>
                       <div className="text-2xl font-bold text-gray-900">$28.90</div>
                     </div>
@@ -776,7 +693,7 @@ export default function FunctionDetailPage() {
                     </div>
                     <Link
                       to={`/logs?functionId=${id}`}
-                      className="px-6 py-3 bg-gradient-to-r from-purple-400 to-pink-400 text-white font-semibold rounded-xl hover:shadow-lg transition-all whitespace-nowrap cursor-pointer flex items-center gap-2"
+                      className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all whitespace-nowrap cursor-pointer flex items-center gap-2"
                     >
                       <i className="ri-external-link-line text-lg"></i>
                       Logs Explorer에서 전체 보기
@@ -785,7 +702,7 @@ export default function FunctionDetailPage() {
                 </div>
 
                 {/* Simple Filters */}
-                <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-purple-100 p-6 shadow-sm">
+                <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-gray-200 p-6 shadow-sm">
                   <div className="flex items-center gap-4">
                     <div className="flex-1">
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -832,16 +749,16 @@ export default function FunctionDetailPage() {
                 </div>
 
                 {/* Recent Logs List */}
-                <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-purple-100 shadow-sm overflow-hidden">
-                  <div className="px-6 py-4 border-b border-purple-100">
+                <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="px-6 py-4 border-b border-gray-200">
                     <h3 className="text-lg font-bold text-gray-900">실행 로그</h3>
                   </div>
 
-                  <div className="divide-y divide-purple-100">
-                    {mockLogs.slice(0, 20).map((log) => (
+                  <div className="divide-y divide-gray-200">
+                    {logs.slice(0, 20).map((log) => (
                       <div
                         key={log.id}
-                        className="px-6 py-4 hover:bg-purple-50/30 transition-colors"
+                        className="px-6 py-4 hover:bg-gray-50/50 transition-colors"
                       >
                         <div className="flex items-start gap-4">
                           <div className="flex-shrink-0">
@@ -880,14 +797,14 @@ export default function FunctionDetailPage() {
                   </div>
 
                   {/* Footer with Explorer Link */}
-                  <div className="px-6 py-4 bg-gradient-to-r from-purple-50 to-pink-50 border-t border-purple-100">
+                  <div className="px-6 py-4 bg-gradient-to-r from-purple-50 to-pink-50 border-t border-gray-200">
                     <div className="flex items-center justify-between">
                       <p className="text-sm text-gray-600">
                         최근 20개의 로그만 표시됩니다
                       </p>
                       <Link
                         to={`/logs?functionId=${id}`}
-                        className="text-sm font-semibold text-purple-600 hover:text-purple-700 transition-colors cursor-pointer flex items-center gap-1"
+                        className="text-sm font-semibold text-blue-600 hover:text-purple-700 transition-colors cursor-pointer flex items-center gap-1"
                       >
                         전체 로그 보기
                         <i className="ri-arrow-right-line"></i>
@@ -902,7 +819,7 @@ export default function FunctionDetailPage() {
             {activeTab === 'settings' && (
               <div className="space-y-6">
                 {/* General Settings */}
-                <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-purple-100 p-6 shadow-sm">
+                <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-gray-200 p-6 shadow-sm">
                   <h3 className="text-lg font-bold text-gray-900 mb-4">일반 설정</h3>
                   <div className="space-y-4">
                     <div>
@@ -926,7 +843,7 @@ export default function FunctionDetailPage() {
                 </div>
 
                 {/* Runtime Settings */}
-                <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-purple-100 p-6 shadow-sm">
+                <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-gray-200 p-6 shadow-sm">
                   <h3 className="text-lg font-bold text-gray-900 mb-4">런타임 설정</h3>
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
@@ -960,10 +877,10 @@ export default function FunctionDetailPage() {
                 </div>
 
                 {/* Environment Variables */}
-                <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-purple-100 p-6 shadow-sm">
+                <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-gray-200 p-6 shadow-sm">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-bold text-gray-900">환경 변수</h3>
-                    <button className="px-4 py-2 bg-gradient-to-r from-purple-400 to-pink-400 text-white font-semibold rounded-xl hover:shadow-lg transition-all whitespace-nowrap cursor-pointer text-sm flex items-center gap-2">
+                    <button className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all whitespace-nowrap cursor-pointer text-sm flex items-center gap-2">
                       <i className="ri-add-line"></i>
                       추가
                     </button>
@@ -988,7 +905,7 @@ export default function FunctionDetailPage() {
                 </div>
 
                 {/* Warm Pool Settings */}
-                <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-purple-100 p-6 shadow-sm">
+                <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-gray-200 p-6 shadow-sm">
                   <h3 className="text-lg font-bold text-gray-900 mb-4">Warm Pool 설정</h3>
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
@@ -1054,7 +971,7 @@ export default function FunctionDetailPage() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-purple-400 to-pink-400 px-6 py-4 flex items-center justify-between">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
                   <i className="ri-flask-line text-2xl text-white"></i>
@@ -1082,7 +999,7 @@ export default function FunctionDetailPage() {
                 <button
                   onClick={() => setActiveTestTab('input')}
                   className={`px-4 py-3 font-semibold text-sm transition-all cursor-pointer ${activeTestTab === 'input'
-                    ? 'text-purple-600 border-b-2 border-purple-600 bg-white'
+                    ? 'text-blue-600 border-b-2 border-blue-600 bg-white'
                     : 'text-gray-600 hover:text-gray-900'
                     }`}
                 >
@@ -1092,7 +1009,7 @@ export default function FunctionDetailPage() {
                 <button
                   onClick={() => setActiveTestTab('result')}
                   className={`px-4 py-3 font-semibold text-sm transition-all cursor-pointer ${activeTestTab === 'result'
-                    ? 'text-purple-600 border-b-2 border-purple-600 bg-white'
+                    ? 'text-blue-600 border-b-2 border-blue-600 bg-white'
                     : 'text-gray-600 hover:text-gray-900'
                     }`}
                 >
@@ -1102,7 +1019,7 @@ export default function FunctionDetailPage() {
                 <button
                   onClick={() => setActiveTestTab('advanced')}
                   className={`px-4 py-3 font-semibold text-sm transition-all cursor-pointer ${activeTestTab === 'advanced'
-                    ? 'text-purple-600 border-b-2 border-purple-600 bg-white'
+                    ? 'text-blue-600 border-b-2 border-blue-600 bg-white'
                     : 'text-gray-600 hover:text-gray-900'
                     }`}
                 >
@@ -1123,7 +1040,7 @@ export default function FunctionDetailPage() {
                   <textarea
                     value={testInput}
                     onChange={(e) => setTestInput(e.target.value)}
-                    className="w-full h-96 p-4 bg-gray-900 text-gray-100 font-mono text-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none"
+                    className="w-full h-96 p-4 bg-gray-900 text-gray-100 font-mono text-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
                     style={{ fontFamily: 'Monaco, Consolas, monospace' }}
                   />
                   <div className="mt-4 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
@@ -1145,7 +1062,7 @@ export default function FunctionDetailPage() {
                 <div>
                   {isTestRunning ? (
                     <div className="flex flex-col items-center justify-center py-12">
-                      <div className="w-16 h-16 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mb-4"></div>
+                      <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-4"></div>
                       <p className="text-gray-600 font-medium">함수 실행 중...</p>
                     </div>
                   ) : testResult ? (
@@ -1174,9 +1091,9 @@ export default function FunctionDetailPage() {
 
                       {/* Metrics */}
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100">
+                        <div className="bg-gradient-to-br from-blue-50 to-gray-50 rounded-xl p-4 border border-gray-200">
                           <div className="text-sm text-gray-600 mb-1">응답 시간</div>
-                          <div className="text-2xl font-bold text-purple-600">{testResult.responseTime}ms</div>
+                          <div className="text-2xl font-bold text-blue-600">{testResult.responseTime}ms</div>
                         </div>
                         <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
                           <div className="text-sm text-gray-600 mb-1">메모리 사용</div>
@@ -1224,27 +1141,29 @@ export default function FunctionDetailPage() {
                         ? 'bg-gradient-to-r from-green-400 to-emerald-400'
                         : analysis.status === 'warning'
                           ? 'bg-gradient-to-r from-yellow-400 to-orange-400'
-                          : 'bg-gradient-to-r from-red-400 to-pink-400'
+                          : analysis.status === 'tip'
+                            ? 'bg-gradient-to-r from-blue-400 to-indigo-400'
+                            : 'bg-gradient-to-r from-red-400 to-pink-400'
                         }`}>
                         <div className="flex items-center gap-3 mb-2">
-                          <i className="ri-fire-fill text-3xl"></i>
+                          <i className={`${analysis.status === 'tip' ? 'ri-lightbulb-flash-fill' : 'ri-fire-fill'} text-3xl`}></i>
                           <h3 className="text-2xl font-bold">Auto-Tuner 진단</h3>
                         </div>
                         <div className="text-xl font-bold mb-2">{analysis.title}</div>
                         <p className="text-white/90 mb-3">{analysis.message}</p>
-                        <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3 border border-white/30">
+                        <div className="bg-white/10 backdrop-blur-md rounded-lg p-3 border border-white/30">
                           <div className="text-sm font-semibold mb-1">추천 사항</div>
                           <div className="text-white/90">{analysis.recommendation}</div>
                         </div>
                       </div>
 
                       {/* Insight */}
-                      <div className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl p-5">
+                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-5">
                         <div className="flex items-start gap-3">
-                          <i className="ri-lightbulb-line text-purple-600 text-2xl flex-shrink-0 mt-0.5"></i>
+                          <i className="ri-lightbulb-line text-blue-600 text-2xl flex-shrink-0 mt-0.5"></i>
                           <div>
-                            <h4 className="text-lg font-bold text-purple-900 mb-2">지능형 인사이트</h4>
-                            <p className="text-purple-800 text-lg">{analysis.insight}</p>
+                            <h4 className="text-lg font-bold text-blue-900 mb-2">지능형 인사이트</h4>
+                            <p className="text-blue-800 text-lg">{analysis.insight}</p>
                           </div>
                         </div>
                       </div>
@@ -1252,7 +1171,7 @@ export default function FunctionDetailPage() {
                       {/* Resource DNA */}
                       <div>
                         <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                          <i className="ri-dna-line text-purple-600"></i>
+                          <i className="ri-dna-line text-blue-600"></i>
                           리소스 DNA 분석
                         </h4>
                         <div className="space-y-4">
@@ -1260,7 +1179,7 @@ export default function FunctionDetailPage() {
                             {
                               label: 'Memory',
                               value: (testResult.memoryUsed / testResult.memoryAllocated) * 100,
-                              color: 'purple',
+                              color: 'indigo',
                               icon: 'ri-database-2-line',
                               detail: `${testResult.memoryUsed}MB / ${testResult.memoryAllocated}MB`
                             },
@@ -1286,7 +1205,7 @@ export default function FunctionDetailPage() {
                               detail: `Read ${testResult.diskRead}KB / Write ${testResult.diskWrite}KB`
                             }
                           ].map((metric) => (
-                            <div key={metric.label} className="bg-white rounded-xl p-5 border-2 border-gray-200 hover:border-purple-300 transition-all">
+                            <div key={metric.label} className="bg-white rounded-xl p-5 border-2 border-gray-200 hover:border-blue-300 transition-all">
                               <div className="flex items-center justify-between mb-3">
                                 <div className="flex items-center gap-3">
                                   <div className={`w-10 h-10 bg-gradient-to-br from-${metric.color}-100 to-${metric.color}-200 rounded-lg flex items-center justify-center`}>
@@ -1364,7 +1283,7 @@ export default function FunctionDetailPage() {
                 <button
                   onClick={handleTestRun}
                   disabled={isTestRunning}
-                  className="px-6 py-3 bg-gradient-to-r from-purple-400 to-pink-400 text-white font-semibold rounded-xl hover:shadow-lg transition-all whitespace-nowrap cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all whitespace-nowrap cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <i className="ri-play-line"></i>
                   {isTestRunning ? '실행 중...' : '테스트 실행'}
@@ -1377,7 +1296,7 @@ export default function FunctionDetailPage() {
 
       {/* Optimization Toast */}
       {showOptimizationToast && (
-        <div className="fixed bottom-6 right-6 bg-white rounded-xl shadow-2xl border border-purple-200 p-4 flex items-center gap-3 z-50 animate-slide-up">
+        <div className="fixed bottom-6 right-6 bg-white rounded-xl shadow-2xl border border-green-200 p-4 flex items-center gap-3 z-50 animate-slide-up">
           <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-emerald-400 rounded-lg flex items-center justify-center">
             <i className="ri-check-line text-xl text-white"></i>
           </div>
@@ -1420,11 +1339,11 @@ export default function FunctionDetailPage() {
           margin: 12px 0;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: linear-gradient(to bottom, #c084fc, #f472b6);
+          background: linear-gradient(to bottom, #60a5fa, #4f46e5);
           border-radius: 10px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: linear-gradient(to bottom, #a855f7, #ec4899);
+          background: linear-gradient(to bottom, #3b82f6, #4338ca);
         }
       `}</style>
     </div>

@@ -64,7 +64,21 @@ export default function DeployPage() {
     return {
         'statusCode': 200,
         'body': 'Hello from NanoGrid!'
-    }`,
+    }
+
+if __name__ == "__main__":
+    import json
+    import os
+    
+    # Simulate execution
+    event = {}
+    if os.environ.get("PAYLOAD"):
+        try:
+            event = json.loads(os.environ.get("PAYLOAD"))
+        except:
+            pass
+            
+    print(json.dumps(handler(event, {})))`,
     nodejs: `exports.handler = async (event, context) => {
     /**
      * NanoGrid Function Handler
@@ -160,14 +174,14 @@ func Handler(event map[string]interface{}) (Response, error) {
 
       // Determine filename based on runtime
       const filenameMap: Record<string, string> = {
-        'python': 'function.py',
+        'python': 'main.py',
         'nodejs': 'index.js',
         'cpp': 'main.cpp',
         'go': 'main.go'
       };
 
       // Default to python if unknown, but we have strict types locally
-      const codeFilename = filenameMap[formData.language] || 'function.txt';
+      const codeFilename = filenameMap[formData.language] || 'main.txt';
       zip.file(codeFilename, formData.code);
 
       // Generate Zip Blob
@@ -418,7 +432,7 @@ func Handler(event map[string]interface{}) (Response, error) {
   ];
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
+    <div className="flex h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-gray-100">
       <Sidebar />
 
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -431,27 +445,27 @@ func Handler(event map[string]interface{}) (Response, error) {
               <div className="flex items-center justify-between mb-4">
                 {[1, 2, 3].map((s) => (
                   <div key={s} className="flex items-center flex-1">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all ${currentStep >= s ? 'bg-gradient-to-r from-purple-400 to-pink-400 text-white shadow-md' : 'bg-white text-gray-400 border-2 border-gray-200'
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all ${currentStep >= s ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md' : 'bg-white text-gray-400 border-2 border-gray-200'
                       }`}>
                       {s}
                     </div>
                     {s < 3 && (
-                      <div className={`flex-1 h-1 mx-4 transition-all rounded-full ${currentStep > s ? 'bg-gradient-to-r from-purple-400 to-pink-400' : 'bg-gray-200'
+                      <div className={`flex-1 h-1 mx-4 transition-all rounded-full ${currentStep > s ? 'bg-gradient-to-r from-blue-600 to-purple-600' : 'bg-gray-200'
                         }`}></div>
                     )}
                   </div>
                 ))}
               </div>
               <div className="flex justify-between">
-                <span className={`text-sm flex-1 text-center ${currentStep >= 1 ? 'text-purple-600 font-medium' : 'text-gray-400'}`}>기본 설정</span>
-                <span className={`text-sm flex-1 text-center ${currentStep >= 2 ? 'text-purple-600 font-medium' : 'text-gray-400'}`}>코드 작성</span>
-                <span className={`text-sm flex-1 text-center ${currentStep >= 3 ? 'text-purple-600 font-medium' : 'text-gray-400'}`}>배포 확인</span>
+                <span className={`text-sm flex-1 text-center ${currentStep >= 1 ? 'text-blue-600 font-medium' : 'text-gray-400'}`}>기본 설정</span>
+                <span className={`text-sm flex-1 text-center ${currentStep >= 2 ? 'text-blue-600 font-medium' : 'text-gray-400'}`}>코드 작성</span>
+                <span className={`text-sm flex-1 text-center ${currentStep >= 3 ? 'text-blue-600 font-medium' : 'text-gray-400'}`}>배포 확인</span>
               </div>
             </div>
 
             {/* Step 1: Basic Configuration */}
             {currentStep === 1 && (
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-purple-100 p-8 shadow-sm">
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200 p-8 shadow-sm">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">기본 설정</h2>
 
                 <div className="space-y-6">
@@ -464,7 +478,7 @@ func Handler(event map[string]interface{}) (Response, error) {
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       placeholder="my-function"
-                      className="w-full px-4 py-3 bg-white border border-purple-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all"
+                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
                     />
                     <p className="mt-2 text-xs text-gray-500">소문자, 숫자, 하이픈만 사용 가능합니다</p>
                   </div>
@@ -480,7 +494,7 @@ func Handler(event map[string]interface{}) (Response, error) {
                         onChange={(e) => !isHandlerDisabled && setFormData({ ...formData, handler: e.target.value })}
                         placeholder="handler.main"
                         disabled={isHandlerDisabled}
-                        className={`w-full px-4 py-3 border border-purple-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all ${isHandlerDisabled
+                        className={`w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all ${isHandlerDisabled
                           ? 'bg-gray-100 text-gray-600 cursor-not-allowed'
                           : 'bg-white'
                           }`}
@@ -508,13 +522,13 @@ func Handler(event map[string]interface{}) (Response, error) {
                           key={lang.id}
                           onClick={() => handleLanguageChange(lang.id)}
                           className={`p-4 rounded-xl border-2 transition-all cursor-pointer ${formData.language === lang.id
-                            ? 'border-purple-400 bg-gradient-to-br from-purple-50 to-pink-50 shadow-md'
-                            : 'border-purple-100 bg-white hover:border-purple-200 hover:shadow-sm'
+                            ? 'border-blue-400 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-md'
+                            : 'border-gray-200 bg-white hover:border-gray-200 hover:shadow-sm'
                             }`}
                         >
-                          <i className={`${lang.icon} text-3xl mb-2 ${formData.language === lang.id ? 'text-purple-600' : 'text-gray-600'
+                          <i className={`${lang.icon} text-3xl mb-2 ${formData.language === lang.id ? 'text-blue-600' : 'text-gray-600'
                             }`}></i>
-                          <div className={`text-sm font-semibold mb-1 ${formData.language === lang.id ? 'text-purple-600' : 'text-gray-700'
+                          <div className={`text-sm font-semibold mb-1 ${formData.language === lang.id ? 'text-blue-600' : 'text-gray-700'
                             }`}>
                             {lang.name}
                           </div>
@@ -573,7 +587,7 @@ func Handler(event map[string]interface{}) (Response, error) {
                       <select
                         value={formData.memory}
                         onChange={(e) => setFormData({ ...formData, memory: Number(e.target.value) })}
-                        className="w-full px-4 py-3 bg-white border border-purple-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all"
+                        className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
                       >
                         {memoryOptions.map((mem) => (
                           <option key={mem} value={mem}>{mem} MB</option>
@@ -588,7 +602,7 @@ func Handler(event map[string]interface{}) (Response, error) {
                       <select
                         value={formData.timeout}
                         onChange={(e) => setFormData({ ...formData, timeout: Number(e.target.value) })}
-                        className="w-full px-4 py-3 bg-white border border-purple-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all"
+                        className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
                       >
                         <option value="10">10초</option>
                         <option value="30">30초</option>
@@ -597,15 +611,15 @@ func Handler(event map[string]interface{}) (Response, error) {
                     </div>
                   </div>
 
-                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-4">
+                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 border border-gray-200 rounded-xl p-4">
                     <div className="flex items-start gap-3">
-                      <i className="ri-lightbulb-line text-purple-600 text-xl flex-shrink-0 mt-0.5"></i>
+                      <i className="ri-lightbulb-line text-blue-600 text-xl flex-shrink-0 mt-0.5"></i>
                       <div>
-                        <h4 className="text-sm font-semibold text-purple-900 mb-1">💡 Auto-Tuner 추천</h4>
-                        <p className="text-sm text-purple-800 mb-2">
+                        <h4 className="text-sm font-semibold text-blue-900 mb-1">💡 Auto-Tuner 추천</h4>
+                        <p className="text-sm text-blue-800 mb-2">
                           첫 실행 후 최적 스펙을 자동으로 분석하여 추천해드립니다.
                         </p>
-                        <div className="text-sm text-purple-700">
+                        <div className="text-sm text-blue-700">
                           예상 비용 절감: <strong>최대 85%</strong>
                         </div>
                       </div>
@@ -625,14 +639,14 @@ func Handler(event map[string]interface{}) (Response, error) {
                             value={envVar.key}
                             onChange={(e) => updateEnvVar(index, 'key', e.target.value)}
                             placeholder="DB_HOST"
-                            className="flex-1 px-4 py-3 bg-white border border-purple-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all"
+                            className="flex-1 px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
                           />
                           <input
                             type="text"
                             value={envVar.value}
                             onChange={(e) => updateEnvVar(index, 'value', e.target.value)}
                             placeholder="localhost:5432"
-                            className="flex-1 px-4 py-3 bg-white border border-purple-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all"
+                            className="flex-1 px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
                           />
                           <button
                             onClick={() => removeEnvVar(index)}
@@ -644,7 +658,7 @@ func Handler(event map[string]interface{}) (Response, error) {
                       ))}
                       <button
                         onClick={addEnvVar}
-                        className="w-full px-6 py-3 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-dashed border-purple-300 text-purple-600 font-semibold rounded-xl hover:bg-gradient-to-br hover:from-purple-100 hover:to-pink-100 transition-all cursor-pointer flex items-center justify-center gap-2"
+                        className="w-full px-6 py-3 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-dashed border-purple-300 text-blue-600 font-semibold rounded-xl hover:bg-gradient-to-br hover:from-blue-100 hover:to-indigo-100 transition-all cursor-pointer flex items-center justify-center gap-2"
                       >
                         <i className="ri-add-line text-xl"></i>
                         변수 추가
@@ -657,14 +671,14 @@ func Handler(event map[string]interface{}) (Response, error) {
                 <div className="flex justify-end gap-3 mt-8">
                   <button
                     onClick={() => navigate('/dashboard')}
-                    className="px-6 py-3 bg-white border border-purple-200 text-gray-700 font-semibold rounded-xl hover:bg-purple-50 transition-all whitespace-nowrap cursor-pointer"
+                    className="px-6 py-3 bg-white border border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-all whitespace-nowrap cursor-pointer"
                   >
                     취소
                   </button>
                   <button
                     onClick={() => setCurrentStep(2)}
                     disabled={!formData.name}
-                    className="px-6 py-3 bg-gradient-to-r from-purple-400 to-pink-400 text-white font-semibold rounded-xl hover:shadow-lg transition-all whitespace-nowrap cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all whitespace-nowrap cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     다음 단계 (코드 작성)
                   </button>
@@ -674,7 +688,7 @@ func Handler(event map[string]interface{}) (Response, error) {
 
             {/* Step 2: Code Editor */}
             {currentStep === 2 && (
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-purple-100 p-8 shadow-sm">
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200 p-8 shadow-sm">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">코드 작성</h2>
 
                 <div className="mb-6">
@@ -692,14 +706,14 @@ func Handler(event map[string]interface{}) (Response, error) {
                       />
                       <button
                         onClick={handleFileUpload}
-                        className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-purple-200 hover:bg-purple-50 rounded-lg transition-all whitespace-nowrap cursor-pointer"
+                        className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg transition-all whitespace-nowrap cursor-pointer"
                       >
                         <i className="ri-file-upload-line mr-1"></i>
                         파일 업로드
                       </button>
                       <button
                         onClick={handleGithubConnect}
-                        className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-purple-200 hover:bg-purple-50 rounded-lg transition-all whitespace-nowrap cursor-pointer"
+                        className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg transition-all whitespace-nowrap cursor-pointer"
                       >
                         <i className="ri-github-line mr-1"></i>
                         GitHub 연동
@@ -707,7 +721,7 @@ func Handler(event map[string]interface{}) (Response, error) {
                     </div>
                   </div>
 
-                  <div className="border border-purple-200 rounded-xl overflow-hidden shadow-sm">
+                  <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
                     <div className="bg-gray-900 px-4 py-2 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="w-3 h-3 rounded-full bg-red-400"></div>
@@ -743,20 +757,20 @@ func Handler(event map[string]interface{}) (Response, error) {
                 <div className="flex justify-between gap-3">
                   <button
                     onClick={() => setCurrentStep(1)}
-                    className="px-6 py-3 bg-white border border-purple-200 text-gray-700 font-semibold rounded-xl hover:bg-purple-50 transition-all whitespace-nowrap cursor-pointer"
+                    className="px-6 py-3 bg-white border border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-all whitespace-nowrap cursor-pointer"
                   >
                     이전 단계
                   </button>
                   <div className="flex gap-3">
                     <button
                       onClick={() => setShowTestModal(true)}
-                      className="px-6 py-3 bg-white border-2 border-purple-400 text-purple-600 font-semibold rounded-xl hover:bg-purple-50 transition-all whitespace-nowrap cursor-pointer"
+                      className="px-6 py-3 bg-white border-2 border-blue-400 text-blue-600 font-semibold rounded-xl hover:bg-blue-50 transition-all whitespace-nowrap cursor-pointer"
                     >
                       테스트 실행
                     </button>
                     <button
                       onClick={() => setCurrentStep(3)}
-                      className="px-6 py-3 bg-gradient-to-r from-purple-400 to-pink-400 text-white font-semibold rounded-xl hover:shadow-lg transition-all whitespace-nowrap cursor-pointer"
+                      className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all whitespace-nowrap cursor-pointer"
                     >
                       다음 단계
                     </button>
@@ -767,36 +781,36 @@ func Handler(event map[string]interface{}) (Response, error) {
 
             {/* Step 3: Deploy Confirmation */}
             {currentStep === 3 && (
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-purple-100 p-8 shadow-sm">
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200 p-8 shadow-sm">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">배포 확인</h2>
 
                 <div className="space-y-6 mb-8">
                   <div className="grid md:grid-cols-2 gap-6">
-                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100">
+                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-gray-200">
                       <div className="text-sm text-gray-600 mb-1">함수명</div>
                       <div className="font-semibold text-gray-900">{formData.name}</div>
                     </div>
-                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100">
+                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-gray-200">
                       <div className="text-sm text-gray-600 mb-1">핸들러</div>
                       <div className="font-semibold text-gray-900">{formData.handler}</div>
                     </div>
-                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100">
+                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-gray-200">
                       <div className="text-sm text-gray-600 mb-1">언어 / 런타임</div>
                       <div className="font-semibold text-gray-900">
                         {languages.find(l => l.id === formData.language)?.name} {languages.find(l => l.id === formData.language)?.version}
                       </div>
                     </div>
-                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100">
+                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-gray-200">
                       <div className="text-sm text-gray-600 mb-1">Warm Pool</div>
                       <div className="font-semibold text-gray-900">
                         {formData.warmPoolEnabled ? '✅ 활성화' : '❌ 비활성화'}
                       </div>
                     </div>
-                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100">
+                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-gray-200">
                       <div className="text-sm text-gray-600 mb-1">메모리</div>
                       <div className="font-semibold text-gray-900">{formData.memory} MB</div>
                     </div>
-                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100">
+                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-gray-200">
                       <div className="text-sm text-gray-600 mb-1">타임아웃</div>
                       <div className="font-semibold text-gray-900">{formData.timeout}초</div>
                     </div>
@@ -1196,7 +1210,7 @@ func Handler(event map[string]interface{}) (Response, error) {
                 </p>
               </div>
 
-              <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 mb-6 border border-purple-100">
+              <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 mb-6 border border-gray-200">
                 <div className="text-sm text-gray-600 mb-2">함수 이름</div>
                 <div className="font-semibold text-gray-900">{formData.name}</div>
               </div>
@@ -1378,7 +1392,7 @@ func Handler(event map[string]interface{}) (Response, error) {
               </div>
 
               {/* Function Info */}
-              <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 mb-6 border border-purple-100">
+              <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 mb-6 border border-gray-200">
                 <div className="text-sm text-gray-600 mb-2">배포된 함수</div>
                 <div className="font-semibold text-gray-900">{formData.name}</div>
               </div>
@@ -1539,7 +1553,7 @@ func Handler(event map[string]interface{}) (Response, error) {
 
                       {/* Metrics */}
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100">
+                        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-gray-200">
                           <div className="text-sm text-gray-600 mb-1">응답 시간</div>
                           <div className="text-2xl font-bold text-purple-600">{testResult.responseTime}ms</div>
                         </div>
@@ -1620,7 +1634,7 @@ func Handler(event map[string]interface{}) (Response, error) {
                           최적화 추천
                         </h4>
                         <div className="space-y-3">
-                          <div className="bg-white rounded-lg p-4 border border-purple-100">
+                          <div className="bg-white rounded-lg p-4 border border-gray-200">
                             <div className="flex items-start gap-3">
                               <i className="ri-arrow-down-line text-green-600 text-xl flex-shrink-0 mt-0.5"></i>
                               <div>
@@ -1634,7 +1648,7 @@ func Handler(event map[string]interface{}) (Response, error) {
                               </div>
                             </div>
                           </div>
-                          <div className="bg-white rounded-lg p-4 border border-purple-100">
+                          <div className="bg-white rounded-lg p-4 border border-gray-200">
                             <div className="flex items-start gap-3">
                               <i className="ri-time-line text-blue-600 text-xl flex-shrink-0 mt-0.5"></i>
                               <div>

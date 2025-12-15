@@ -27,11 +27,7 @@ interface LogEntry {
 
 export default function DashboardPage() {
   const [showLogModal, setShowLogModal] = useState(false);
-  const [logs, setLogs] = useState<LogEntry[]>([
-    { id: '1', time: '14:20:01', type: 'warm', message: 'func-01: Warm Start execution (45ms)', icon: '🚀' },
-    { id: '2', time: '14:20:05', type: 'tuner', message: 'Auto-Tuner: func-02 optimized (512MB -> 256MB)', icon: '🔧' },
-    { id: '3', time: '14:20:10', type: 'pool', message: 'System: Replenishing Python Warm Pool (+1)', icon: '♻️' },
-  ]);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
 
   const [functions, setFunctions] = useState<FunctionItem[]>([]);
 
@@ -41,11 +37,16 @@ export default function DashboardPage() {
       try {
         const data = await functionApi.getFunctions();
 
-        const transformed = data.map((d: any) => ({
+        // Sort by uploadedAt (descending) BEFORE formatting
+        const sortedData = data.sort((a: any, b: any) =>
+          new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
+        );
+
+        const transformed = sortedData.map((d: any) => ({
           id: d.functionId,
           name: d.name,
           language: d.runtime,
-          status: 'active', // If it's in the list, it is deployed and ready
+          status: 'active' as 'active' | 'inactive' | 'deploying', // If it's in the list, it is deployed and ready
           lastDeployed: d.uploadedAt ? new Date(d.uploadedAt).toLocaleString() : '-',
           invocations: 0, // Not provided by list API yet
           avgDuration: 0,
@@ -123,7 +124,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
+    <div className="flex h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-gray-100">
       <Sidebar onSystemStatusClick={() => setShowLogModal(true)} />
 
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -144,10 +145,10 @@ export default function DashboardPage() {
                 <div className="text-sm text-gray-600">활성 함수</div>
               </div>
 
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-pink-100 shadow-sm">
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-purple-100 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-pink-100 to-pink-200 rounded-xl flex items-center justify-center">
-                    <i className="ri-flashlight-line text-2xl text-pink-600"></i>
+                  <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-purple-200 rounded-xl flex items-center justify-center">
+                    <i className="ri-flashlight-line text-2xl text-purple-600"></i>
                   </div>
                   <span className="text-xs text-green-600 flex items-center gap-1">
                     <i className="ri-arrow-up-line"></i>
@@ -192,32 +193,32 @@ export default function DashboardPage() {
             </div>
 
             {/* Functions Table */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-purple-100 shadow-sm overflow-hidden mb-6">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-6">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple-100">
+                  <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-4 text-left text-sm font-bold text-gray-700">함수명</th>
-                      <th className="px-6 py-4 text-left text-sm font-bold text-gray-700">언어 / 런타임</th>
-                      <th className="px-6 py-4 text-left text-sm font-bold text-gray-700">메모리</th>
-                      <th className="px-6 py-4 text-left text-sm font-bold text-gray-700">상태</th>
-                      <th className="px-6 py-4 text-left text-sm font-bold text-gray-700">마지막 실행</th>
-                      <th className="px-6 py-4 text-center text-sm font-bold text-gray-700">작업</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">함수명</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">상태</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">언어</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">메모리</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">마지막 배포</th>
+                      <th className="px-6 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">작업</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-purple-50">
+                  <tbody className="divide-y divide-gray-200">
                     {functions.map((func) => (
-                      <tr key={func.id} className="hover:bg-purple-50/50 transition-colors">
+                      <tr key={func.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4">
                           <Link
                             to={`/function/${func.id}`}
                             className="flex items-center gap-3 cursor-pointer group"
                           >
-                            <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-400 rounded-xl flex items-center justify-center">
+                            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
                               <i className="ri-function-line text-white"></i>
                             </div>
                             <div>
-                              <div className="font-semibold text-gray-900 group-hover:text-purple-600 transition-colors">
+                              <div className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
                                 {func.name}
                               </div>
                               <div className="text-xs text-gray-500">{func.id}</div>

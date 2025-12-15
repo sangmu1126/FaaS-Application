@@ -1,13 +1,14 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Sidebar from '../dashboard/components/Sidebar';
 import Header from '../dashboard/components/Header';
 import { useNavigate } from 'react-router-dom';
+import { logApi } from '../../services/logApi';
 
 interface LogEntry {
   id: string;
   timestamp: string;
   functionName: string;
-  level: 'info' | 'warn' | 'error';
+  level: 'info' | 'warning' | 'error';
   message: string;
   duration: number;
   requestId: string;
@@ -19,115 +20,37 @@ export default function LogsPage() {
   const [selectedLevel, setSelectedLevel] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
   const logsPerPage = 20;
 
-  const [logs, setLogs] = useState<LogEntry[]>([
-    {
-      id: '1',
-      timestamp: '2025-01-15 14:32:15',
-      functionName: 'image-processor',
-      level: 'info',
-      message: 'Image processing completed successfully',
-      duration: 42,
-      requestId: 'req-abc123'
-    },
-    {
-      id: '2',
-      timestamp: '2025-01-15 14:31:58',
-      functionName: 'data-analyzer',
-      level: 'info',
-      message: 'Data analysis started for dataset-001',
-      duration: 12,
-      requestId: 'req-def456'
-    },
-    {
-      id: '3',
-      timestamp: '2025-01-15 14:31:42',
-      functionName: 'api-gateway',
-      level: 'warn',
-      message: 'Rate limit approaching threshold (85%)',
-      duration: 23,
-      requestId: 'req-ghi789'
-    },
-    {
-      id: '4',
-      timestamp: '2025-01-15 14:31:20',
-      functionName: 'image-processor',
-      level: 'error',
-      message: 'Failed to process image: Invalid format',
-      duration: 45,
-      requestId: 'req-jkl012'
-    },
-    {
-      id: '5',
-      timestamp: '2025-01-15 14:30:55',
-      functionName: 'ml-inference',
-      level: 'info',
-      message: 'Model inference completed with 98.5% confidence',
-      duration: 156,
-      requestId: 'req-mno345'
-    },
-    {
-      id: '6',
-      timestamp: '2025-01-15 14:30:32',
-      functionName: 'file-converter',
-      level: 'info',
-      message: 'File conversion: PDF to PNG completed',
-      duration: 67,
-      requestId: 'req-pqr678'
-    },
-    {
-      id: '7',
-      timestamp: '2025-01-15 14:30:10',
-      functionName: 'data-analyzer',
-      level: 'warn',
-      message: 'Large dataset detected, processing may take longer',
-      duration: 15,
-      requestId: 'req-stu901'
-    },
-    {
-      id: '8',
-      timestamp: '2025-01-15 14:29:48',
-      functionName: 'api-gateway',
-      level: 'info',
-      message: 'Request routed to backend service',
-      duration: 18,
-      requestId: 'req-vwx234'
+  const fetchLogs = async () => {
+    try {
+      setIsRefreshing(true);
+      const response = await logApi.getLogs();
+      const logsData = Array.isArray(response) ? response : (response as any).logs || [];
+      // Map API response to Component LogEntry if needed, or cast
+      setLogs(logsData.map((l: any) => ({
+        id: l.id,
+        timestamp: l.timestamp,
+        functionName: l.functionName || 'unknown',
+        level: l.level === 'warn' ? 'warning' : l.level,
+        message: l.message,
+        duration: l.duration || 0,
+        requestId: l.requestId || '-'
+      })));
+    } catch (error) {
+      console.error('Failed to fetch logs:', error);
+    } finally {
+      setIsRefreshing(false);
     }
-  ]);
+  };
+
+  useEffect(() => {
+    fetchLogs();
+  }, []);
 
   const handleRefresh = async () => {
-    setIsRefreshing(true);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Generate new logs
-    const newLogs: LogEntry[] = Array.from({ length: 5 }, (_, i) => ({
-      id: `log-${Date.now()}-${i}`,
-      timestamp: new Date(Date.now() - Math.random() * 60000).toLocaleString('sv-SE', { 
-        year: 'numeric', 
-        month: '2-digit', 
-        day: '2-digit', 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        second: '2-digit' 
-      }).replace('T', ' '),
-      level: (['info', 'error', 'warn'] as const)[Math.floor(Math.random() * 3)],
-      functionName: ['image-processor', 'data-analyzer', 'api-gateway', 'ml-inference'][Math.floor(Math.random() * 4)],
-      message: [
-        'Function executed successfully',
-        'Database connection timeout',
-        'Memory usage high: 85%',
-        'Request processed in 45ms',
-        'Cache miss, fetching from database'
-      ][Math.floor(Math.random() * 5)],
-      duration: Math.floor(Math.random() * 500) + 10,
-      requestId: `req-${Math.random().toString(36).substr(2, 9)}`
-    }));
-    
-    setLogs([...newLogs, ...logs]);
-    setIsRefreshing(false);
+    await fetchLogs();
   };
 
   const handleApplyFilters = () => {
@@ -199,12 +122,12 @@ export default function LogsPage() {
   };
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
-      <Sidebar />
-      
+    <div className="flex h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-gray-100">
+      <Sidebar onSystemStatusClick={() => { }} />
+
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
-        
+
         <main className="flex-1 overflow-y-auto">
           <div className="max-w-7xl mx-auto px-6 py-8">
             <div className="mb-6">
@@ -213,14 +136,14 @@ export default function LogsPage() {
             </div>
 
             {/* Filters */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-purple-100 p-6 shadow-sm mb-6">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200 p-6 shadow-sm mb-6">
               <div className="grid md:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">함수 선택</label>
                   <select
                     value={selectedFunction}
                     onChange={(e) => handleFunctionChange(e.target.value)}
-                    className="w-full px-4 py-2 bg-white border border-purple-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all"
+                    className="w-full px-4 py-2 bg-white border border-blue-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
                   >
                     <option value="all">전체 함수</option>
                     <option value="image-processor">image-processor</option>
@@ -236,7 +159,7 @@ export default function LogsPage() {
                   <select
                     value={selectedLevel}
                     onChange={(e) => handleLevelChange(e.target.value)}
-                    className="w-full px-4 py-2 bg-white border border-purple-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all"
+                    className="w-full px-4 py-2 bg-white border border-blue-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
                   >
                     <option value="all">전체</option>
                     <option value="info">Info</option>
@@ -249,7 +172,7 @@ export default function LogsPage() {
                   <label className="block text-sm font-semibold text-gray-700 mb-2">시작 시간</label>
                   <input
                     type="datetime-local"
-                    className="w-full px-4 py-2 bg-white border border-purple-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all"
+                    className="w-full px-4 py-2 bg-white border border-blue-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
                   />
                 </div>
 
@@ -257,7 +180,7 @@ export default function LogsPage() {
                   <label className="block text-sm font-semibold text-gray-700 mb-2">종료 시간</label>
                   <input
                     type="datetime-local"
-                    className="w-full px-4 py-2 bg-white border border-purple-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all"
+                    className="w-full px-4 py-2 bg-white border border-blue-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
                   />
                 </div>
               </div>
@@ -265,13 +188,13 @@ export default function LogsPage() {
               <div className="flex items-center gap-3 mt-4">
                 <button
                   onClick={handleApplyFilters}
-                  className="px-4 py-2 bg-gradient-to-r from-purple-400 to-pink-400 text-white font-semibold rounded-xl hover:shadow-lg transition-all whitespace-nowrap cursor-pointer text-sm"
+                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all whitespace-nowrap cursor-pointer text-sm"
                 >
                   필터 적용
                 </button>
                 <button
                   onClick={handleResetFilters}
-                  className="px-4 py-2 bg-white border border-purple-200 text-gray-700 font-semibold rounded-xl hover:bg-purple-50 transition-all whitespace-nowrap cursor-pointer text-sm"
+                  className="px-4 py-2 bg-white border border-blue-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-all whitespace-nowrap cursor-pointer text-sm"
                 >
                   초기화
                 </button>
@@ -279,7 +202,7 @@ export default function LogsPage() {
                 <button
                   onClick={handleRefresh}
                   disabled={isRefreshing}
-                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-purple-200 hover:bg-purple-50 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-blue-200 hover:bg-gray-50 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <i className={`ri-refresh-line text-gray-600 ${isRefreshing ? 'animate-spin' : ''}`}></i>
                 </button>
@@ -287,21 +210,21 @@ export default function LogsPage() {
             </div>
 
             {/* Logs List */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-purple-100 shadow-sm">
-              <div className="px-6 py-4 border-b border-purple-100 flex items-center justify-between">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200 shadow-sm">
+              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
                 <h2 className="text-lg font-bold text-gray-900">로그 목록</h2>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-600">자동 새로고침</span>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-400 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-purple-400 peer-checked:to-pink-400"></div>
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-400 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-purple-400 peer-checked:to-pink-400"></div>
                   </label>
                 </div>
               </div>
 
               <div className="divide-y divide-purple-100">
                 {currentLogs.map((log) => (
-                  <div key={log.id} className="px-6 py-4 hover:bg-purple-50/30 transition-colors">
+                  <div key={log.id} className="px-6 py-4 hover:bg-gray-50/30 transition-colors">
                     <div className="flex items-start gap-4">
                       <div className="flex-shrink-0 mt-1">
                         <div className={`w-8 h-8 rounded-xl flex items-center justify-center border ${getLevelColor(log.level)}`}>
@@ -321,13 +244,13 @@ export default function LogsPage() {
                         <p className="text-sm text-gray-700 mb-2">{log.message}</p>
                         <div className="flex items-center gap-4 text-xs text-gray-500">
                           <span>Request ID: {log.requestId}</span>
-                          <button className="text-purple-600 hover:text-purple-700 font-medium cursor-pointer">
+                          <button className="text-blue-600 hover:text-blue-700 font-medium cursor-pointer">
                             자세히 보기
                           </button>
                         </div>
                       </div>
 
-                      <button className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-xl hover:bg-purple-50 transition-colors cursor-pointer">
+                      <button className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-50 transition-colors cursor-pointer">
                         <i className="ri-more-2-fill text-gray-600"></i>
                       </button>
                     </div>
@@ -335,29 +258,27 @@ export default function LogsPage() {
                 ))}
               </div>
 
-              <div className="px-6 py-4 border-t border-purple-100 flex items-center justify-between">
+              <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
                 <span className="text-sm text-gray-600">총 {filteredLogs.length}개의 로그</span>
                 <div className="flex items-center gap-2">
-                  <button 
+                  <button
                     onClick={handlePreviousPage}
                     disabled={currentPage === 1}
-                    className={`px-3 py-1.5 bg-white border border-purple-200 text-gray-700 rounded-xl transition-all text-sm font-medium whitespace-nowrap cursor-pointer ${
-                      currentPage === 1 
-                        ? 'opacity-50 cursor-not-allowed' 
-                        : 'hover:bg-purple-50'
-                    }`}
+                    className={`px-3 py-1.5 bg-white border border-blue-200 text-gray-700 rounded-xl transition-all text-sm font-medium whitespace-nowrap cursor-pointer ${currentPage === 1
+                      ? 'opacity-50 cursor-not-allowed'
+                      : 'hover:bg-gray-50'
+                      }`}
                   >
                     이전
                   </button>
                   <span className="text-sm text-gray-600">{currentPage} / {totalPages}</span>
-                  <button 
+                  <button
                     onClick={handleNextPage}
                     disabled={currentPage === totalPages}
-                    className={`px-3 py-1.5 bg-white border border-purple-200 text-gray-700 rounded-xl transition-all text-sm font-medium whitespace-nowrap cursor-pointer ${
-                      currentPage === totalPages 
-                        ? 'opacity-50 cursor-not-allowed' 
-                        : 'hover:bg-purple-50'
-                    }`}
+                    className={`px-3 py-1.5 bg-white border border-blue-200 text-gray-700 rounded-xl transition-all text-sm font-medium whitespace-nowrap cursor-pointer ${currentPage === totalPages
+                      ? 'opacity-50 cursor-not-allowed'
+                      : 'hover:bg-gray-50'
+                      }`}
                   >
                     다음
                   </button>
