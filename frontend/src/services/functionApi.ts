@@ -62,6 +62,9 @@ export const functionApi = {
 
   // Invoke function
   invokeFunction: async (id: string, payload?: unknown): Promise<unknown> => {
-    return apiClient.post(`/functions/${id}/invoke`, payload);
+    return apiClient.post('/run', {
+      functionId: id,
+      inputData: payload
+    });
   },
 };
