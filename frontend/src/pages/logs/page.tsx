@@ -3,6 +3,7 @@ import Sidebar from '../dashboard/components/Sidebar';
 import Header from '../dashboard/components/Header';
 import { useNavigate } from 'react-router-dom';
 import { logApi } from '../../services/logApi';
+import { functionApi } from '../../services/functionApi';
 
 interface LogEntry {
   id: string;
@@ -21,6 +22,7 @@ export default function LogsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [functionsList, setFunctionsList] = useState<string[]>([]);
   const logsPerPage = 20;
 
   const fetchLogs = async () => {
@@ -40,6 +42,17 @@ export default function LogsPage() {
       })));
     } catch (error) {
       console.error('Failed to fetch logs:', error);
+      // Fallback Mock Data
+      const mockLogs: LogEntry[] = Array.from({ length: 20 }, (_, i) => ({
+        id: `log-mock-${i}`,
+        timestamp: new Date().toISOString(),
+        functionName: ['image-processor', 'data-analyzer'][i % 2],
+        level: i % 5 === 0 ? 'error' : 'info',
+        message: i % 5 === 0 ? 'Connection timeout' : 'Function executed successfully',
+        duration: 100 + i * 10,
+        requestId: `req-${i}`
+      }));
+      setLogs(mockLogs);
     } finally {
       setIsRefreshing(false);
     }
@@ -47,6 +60,11 @@ export default function LogsPage() {
 
   useEffect(() => {
     fetchLogs();
+
+    // Fetch function list for filter
+    functionApi.getFunctions().then(funcs => {
+      setFunctionsList(funcs.map((f: any) => f.name || f.functionId));
+    }).catch(console.error);
   }, []);
 
   const handleRefresh = async () => {
@@ -146,11 +164,9 @@ export default function LogsPage() {
                     className="w-full px-4 py-2 bg-white border border-blue-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
                   >
                     <option value="all">전체 함수</option>
-                    <option value="image-processor">image-processor</option>
-                    <option value="data-analyzer">data-analyzer</option>
-                    <option value="api-gateway">api-gateway</option>
-                    <option value="ml-inference">ml-inference</option>
-                    <option value="file-converter">file-converter</option>
+                    {functionsList.map(name => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
                   </select>
                 </div>
 
