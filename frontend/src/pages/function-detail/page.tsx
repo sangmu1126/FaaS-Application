@@ -3,6 +3,8 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import Sidebar from '../dashboard/components/Sidebar';
 import Header from '../dashboard/components/Header';
 
+import { functionApi } from '../../services/functionApi';
+
 export default function FunctionDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -217,78 +219,56 @@ export default function FunctionDetailPage() {
   };
 
   const handleTestRun = async () => {
+    if (!id) return;
     setIsTestRunning(true);
     setTestResult(null);
     setActiveTestTab('result');
 
-    // 테스트 실행 시뮬레이션
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    try {
+      let inputPayload = {};
+      try {
+        inputPayload = JSON.parse(testInput);
+      } catch (e) {
+        alert('Invalid JSON Input');
+        setIsTestRunning(false);
+        return;
+      }
 
-    // 랜덤 결과 생성
-    const success = Math.random() > 0.2;
-    const executionTime = Math.floor(Math.random() * 100) + 30;
-    const memoryUsed = Math.floor(Math.random() * 100) + 400;
-    const cpuUsage = Math.floor(Math.random() * 60) + 20;
-    const networkRx = Math.floor(Math.random() * 50) + 10;
-    const networkTx = Math.floor(Math.random() * 30) + 5;
-    const diskRead = Math.floor(Math.random() * 20) + 5;
-    const diskWrite = Math.floor(Math.random() * 15) + 3;
+      const startTime = Date.now();
+      const result: any = await functionApi.invokeFunction(id, inputPayload);
+      const executionTime = Date.now() - startTime;
 
-    if (success) {
+      // Unifying format (Controller returns { statusCode, body } usually)
+      // Check if result has standard structure or raw
+      const isSuccess = result.statusCode >= 200 && result.statusCode < 300;
+
       setTestResult({
-        status: 'success',
-        success: true,
-        statusCode: 200,
-        body: {
-          message: 'Function executed successfully',
-          data: {
-            processed: true,
-            timestamp: new Date().toISOString(),
-            result: 'Test completed'
-          }
-        },
-        output: JSON.stringify({
-          statusCode: 200,
-          body: {
-            message: 'Function executed successfully',
-            data: {
-              processed: true,
-              timestamp: new Date().toISOString(),
-              result: 'Test completed'
-            }
-          }
-        }, null, 2),
+        status: isSuccess ? 'success' : 'error',
+        success: isSuccess,
+        statusCode: result.statusCode || 200,
+        body: result.body,
+        output: JSON.stringify(result, null, 2),
         executionTime,
-        responseTime: executionTime,
-        memoryUsed,
+        responseTime: executionTime, // Approximation
+        memoryUsed: 128, // Not returned by sync run yet, mocking for now
         memoryAllocated: 512,
-        cpuUsage,
-        networkRx,
-        networkTx,
-        diskRead,
-        diskWrite
+        cpuUsage: 20,
+        networkRx: 0,
+        networkTx: 0,
+        diskRead: 0,
+        diskWrite: 0
       });
-    } else {
+
+    } catch (error: any) {
+      console.error("Test Run Failed", error);
       setTestResult({
         status: 'error',
         success: false,
         statusCode: 500,
-        error: 'Internal Server Error',
-        message: 'Function execution failed',
-        output: JSON.stringify({
-          statusCode: 500,
-          error: 'Internal Server Error',
-          message: 'Function execution failed'
-        }, null, 2),
-        executionTime,
-        responseTime: executionTime,
-        memoryUsed,
-        memoryAllocated: 512,
-        cpuUsage,
-        networkRx,
-        networkTx,
-        diskRead,
-        diskWrite
+        error: 'Execution Failed',
+        message: error.message || 'Unknown Error',
+        output: JSON.stringify({ error: error.message }, null, 2),
+        executionTime: 0
       });
     }
 
@@ -378,10 +358,10 @@ export default function FunctionDetailPage() {
   return (
     <div className="flex h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
       <Sidebar />
-      
+
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
-        
+
         <main className="flex-1 overflow-y-auto">
           <div className="max-w-7xl mx-auto px-6 py-8">
             {/* Function Header */}
@@ -400,20 +380,20 @@ export default function FunctionDetailPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <button 
+                  <button
                     onClick={() => setShowTestModal(true)}
                     className="px-4 py-2 bg-gradient-to-r from-purple-400 to-pink-400 text-white font-semibold rounded-xl hover:shadow-lg transition-all whitespace-nowrap cursor-pointer flex items-center gap-2"
                   >
                     <i className="ri-play-circle-line"></i>
                     테스트 실행
                   </button>
-                  <button 
-                    onClick={() => navigate('/deploy', { 
-                      state: { 
+                  <button
+                    onClick={() => navigate('/deploy', {
+                      state: {
                         redeployData: {
                           name: id,
                         }
-                      } 
+                      }
                     })}
                     className="px-4 py-2 bg-white border border-purple-200 text-gray-700 font-semibold rounded-xl hover:bg-purple-50 transition-all whitespace-nowrap cursor-pointer flex items-center gap-2"
                   >
@@ -431,11 +411,10 @@ export default function FunctionDetailPage() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`px-4 py-3 font-medium text-sm transition-all cursor-pointer flex items-center gap-2 rounded-t-xl ${
-                      activeTab === tab.id
-                        ? 'text-purple-600 bg-white border-b-2 border-purple-600'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
-                    }`}
+                    className={`px-4 py-3 font-medium text-sm transition-all cursor-pointer flex items-center gap-2 rounded-t-xl ${activeTab === tab.id
+                      ? 'text-purple-600 bg-white border-b-2 border-purple-600'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
+                      }`}
                   >
                     <i className={tab.icon}></i>
                     {tab.label}
@@ -534,13 +513,13 @@ export default function FunctionDetailPage() {
                         실행 데이터를 분석한 결과, 메모리를 256MB로 조정하면 비용을 <strong>약 50%</strong> 절감할 수 있습니다.
                       </p>
                       <div className="flex items-center gap-4">
-                        <button 
+                        <button
                           onClick={() => setShowOptimizationToast(true)}
                           className="px-6 py-2.5 bg-white text-purple-600 font-semibold rounded-xl hover:shadow-lg transition-all whitespace-nowrap cursor-pointer"
                         >
                           추천 적용하기
                         </button>
-                        <button 
+                        <button
                           onClick={() => setShowTestModal(true)}
                           className="px-6 py-2.5 bg-white/20 backdrop-blur-sm text-white font-semibold rounded-xl hover:bg-white/30 transition-all whitespace-nowrap cursor-pointer border border-white/30"
                         >
@@ -579,11 +558,10 @@ export default function FunctionDetailPage() {
                             <td className="px-6 py-4 text-sm text-gray-700">{inv.duration}ms</td>
                             <td className="px-6 py-4 text-sm text-gray-700">{inv.memory} MB</td>
                             <td className="px-6 py-4">
-                              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
-                                inv.status === 'success'
-                                  ? 'bg-green-50 text-green-600 border border-green-200'
-                                  : 'bg-red-50 text-red-600 border border-red-200'
-                              }`}>
+                              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${inv.status === 'success'
+                                ? 'bg-green-50 text-green-600 border border-green-200'
+                                : 'bg-red-50 text-red-600 border border-red-200'
+                                }`}>
                                 {inv.status === 'success' ? '성공' : '실패'}
                               </span>
                             </td>
@@ -605,41 +583,37 @@ export default function FunctionDetailPage() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setSelectedTimeRange('1h')}
-                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${
-                          selectedTimeRange === '1h'
-                            ? 'bg-gradient-to-r from-purple-400 to-pink-400 text-white'
-                            : 'bg-white border border-purple-200 text-gray-700 hover:bg-purple-50'
-                        }`}
+                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${selectedTimeRange === '1h'
+                          ? 'bg-gradient-to-r from-purple-400 to-pink-400 text-white'
+                          : 'bg-white border border-purple-200 text-gray-700 hover:bg-purple-50'
+                          }`}
                       >
                         1시간
                       </button>
                       <button
                         onClick={() => setSelectedTimeRange('24h')}
-                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${
-                          selectedTimeRange === '24h'
-                            ? 'bg-gradient-to-r from-purple-400 to-pink-400 text-white'
-                            : 'bg-white border border-purple-200 text-gray-700 hover:bg-purple-50'
-                        }`}
+                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${selectedTimeRange === '24h'
+                          ? 'bg-gradient-to-r from-purple-400 to-pink-400 text-white'
+                          : 'bg-white border border-purple-200 text-gray-700 hover:bg-purple-50'
+                          }`}
                       >
                         24시간
                       </button>
                       <button
                         onClick={() => setSelectedTimeRange('7d')}
-                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${
-                          selectedTimeRange === '7d'
-                            ? 'bg-gradient-to-r from-purple-400 to-pink-400 text-white'
-                            : 'bg-white border border-purple-200 text-gray-700 hover:bg-purple-50'
-                        }`}
+                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${selectedTimeRange === '7d'
+                          ? 'bg-gradient-to-r from-purple-400 to-pink-400 text-white'
+                          : 'bg-white border border-purple-200 text-gray-700 hover:bg-purple-50'
+                          }`}
                       >
                         7일
                       </button>
                       <button
                         onClick={() => setSelectedTimeRange('30d')}
-                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${
-                          selectedTimeRange === '30d'
-                            ? 'bg-gradient-to-r from-purple-400 to-pink-400 text-white'
-                            : 'bg-white border border-purple-200 text-gray-700 hover:bg-purple-50'
-                        }`}
+                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${selectedTimeRange === '30d'
+                          ? 'bg-gradient-to-r from-purple-400 to-pink-400 text-white'
+                          : 'bg-white border border-purple-200 text-gray-700 hover:bg-purple-50'
+                          }`}
                       >
                         30일
                       </button>
@@ -872,26 +846,24 @@ export default function FunctionDetailPage() {
                         <div className="flex items-start gap-4">
                           <div className="flex-shrink-0">
                             <div
-                              className={`w-2 h-2 rounded-full mt-2 ${
-                                log.level === 'error'
-                                  ? 'bg-red-500'
-                                  : log.level === 'warning'
+                              className={`w-2 h-2 rounded-full mt-2 ${log.level === 'error'
+                                ? 'bg-red-500'
+                                : log.level === 'warning'
                                   ? 'bg-yellow-500'
                                   : 'bg-green-500'
-                              }`}
+                                }`}
                             ></div>
                           </div>
 
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-3 mb-2">
                               <span
-                                className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold ${
-                                  log.level === 'error'
-                                    ? 'bg-red-100 text-red-700'
-                                    : log.level === 'warning'
+                                className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold ${log.level === 'error'
+                                  ? 'bg-red-100 text-red-700'
+                                  : log.level === 'warning'
                                     ? 'bg-yellow-100 text-yellow-700'
                                     : 'bg-green-100 text-green-700'
-                                }`}
+                                  }`}
                               >
                                 {log.level.toUpperCase()}
                               </span>
@@ -1109,33 +1081,30 @@ export default function FunctionDetailPage() {
               <div className="flex gap-1">
                 <button
                   onClick={() => setActiveTestTab('input')}
-                  className={`px-4 py-3 font-semibold text-sm transition-all cursor-pointer ${
-                    activeTestTab === 'input'
-                      ? 'text-purple-600 border-b-2 border-purple-600 bg-white'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                  className={`px-4 py-3 font-semibold text-sm transition-all cursor-pointer ${activeTestTab === 'input'
+                    ? 'text-purple-600 border-b-2 border-purple-600 bg-white'
+                    : 'text-gray-600 hover:text-gray-900'
+                    }`}
                 >
                   <i className="ri-code-line mr-2"></i>
                   입력
                 </button>
                 <button
                   onClick={() => setActiveTestTab('result')}
-                  className={`px-4 py-3 font-semibold text-sm transition-all cursor-pointer ${
-                    activeTestTab === 'result'
-                      ? 'text-purple-600 border-b-2 border-purple-600 bg-white'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                  className={`px-4 py-3 font-semibold text-sm transition-all cursor-pointer ${activeTestTab === 'result'
+                    ? 'text-purple-600 border-b-2 border-purple-600 bg-white'
+                    : 'text-gray-600 hover:text-gray-900'
+                    }`}
                 >
                   <i className="ri-terminal-line mr-2"></i>
                   결과
                 </button>
                 <button
                   onClick={() => setActiveTestTab('advanced')}
-                  className={`px-4 py-3 font-semibold text-sm transition-all cursor-pointer ${
-                    activeTestTab === 'advanced'
-                      ? 'text-purple-600 border-b-2 border-purple-600 bg-white'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                  className={`px-4 py-3 font-semibold text-sm transition-all cursor-pointer ${activeTestTab === 'advanced'
+                    ? 'text-purple-600 border-b-2 border-purple-600 bg-white'
+                    : 'text-gray-600 hover:text-gray-900'
+                    }`}
                 >
                   <i className="ri-bar-chart-line mr-2"></i>
                   상세 분석 (Advanced)
@@ -1182,18 +1151,15 @@ export default function FunctionDetailPage() {
                   ) : testResult ? (
                     <div className="space-y-4">
                       {/* Status */}
-                      <div className={`rounded-xl p-4 border-2 ${
-                        testResult.success 
-                          ? 'bg-green-50 border-green-300' 
-                          : 'bg-red-50 border-red-300'
-                      }`}>
+                      <div className={`rounded-xl p-4 border-2 ${testResult.success
+                        ? 'bg-green-50 border-green-300'
+                        : 'bg-red-50 border-red-300'
+                        }`}>
                         <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                            testResult.success ? 'bg-green-500' : 'bg-red-500'
-                          }`}>
-                            <i className={`${
-                              testResult.success ? 'ri-check-line' : 'ri-close-line'
-                            } text-2xl text-white`}></i>
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${testResult.success ? 'bg-green-500' : 'bg-red-500'
+                            }`}>
+                            <i className={`${testResult.success ? 'ri-check-line' : 'ri-close-line'
+                              } text-2xl text-white`}></i>
                           </div>
                           <div>
                             <div className="font-bold text-gray-900">
@@ -1254,13 +1220,12 @@ export default function FunctionDetailPage() {
                   {testResult && analysis ? (
                     <div className="space-y-6">
                       {/* Auto-Tuner Header */}
-                      <div className={`rounded-xl p-6 text-white ${
-                        analysis.status === 'optimal' 
-                          ? 'bg-gradient-to-r from-green-400 to-emerald-400'
-                          : analysis.status === 'warning'
+                      <div className={`rounded-xl p-6 text-white ${analysis.status === 'optimal'
+                        ? 'bg-gradient-to-r from-green-400 to-emerald-400'
+                        : analysis.status === 'warning'
                           ? 'bg-gradient-to-r from-yellow-400 to-orange-400'
                           : 'bg-gradient-to-r from-red-400 to-pink-400'
-                      }`}>
+                        }`}>
                         <div className="flex items-center gap-3 mb-2">
                           <i className="ri-fire-fill text-3xl"></i>
                           <h3 className="text-2xl font-bold">Auto-Tuner 진단</h3>
@@ -1292,30 +1257,30 @@ export default function FunctionDetailPage() {
                         </h4>
                         <div className="space-y-4">
                           {[
-                            { 
-                              label: 'Memory', 
-                              value: (testResult.memoryUsed / testResult.memoryAllocated) * 100, 
+                            {
+                              label: 'Memory',
+                              value: (testResult.memoryUsed / testResult.memoryAllocated) * 100,
                               color: 'purple',
                               icon: 'ri-database-2-line',
                               detail: `${testResult.memoryUsed}MB / ${testResult.memoryAllocated}MB`
                             },
-                            { 
-                              label: 'CPU', 
-                              value: testResult.cpuUsage, 
+                            {
+                              label: 'CPU',
+                              value: testResult.cpuUsage,
                               color: 'blue',
                               icon: 'ri-cpu-line',
                               detail: `${testResult.cpuUsage}% 사용`
                             },
-                            { 
-                              label: 'Network I/O', 
-                              value: Math.min((testResult.networkRx + testResult.networkTx) / 2, 100), 
+                            {
+                              label: 'Network I/O',
+                              value: Math.min((testResult.networkRx + testResult.networkTx) / 2, 100),
                               color: 'green',
                               icon: 'ri-global-line',
                               detail: `↓${testResult.networkRx}KB ↑${testResult.networkTx}KB`
                             },
-                            { 
-                              label: 'Disk I/O', 
-                              value: Math.min((testResult.diskRead + testResult.diskWrite) / 2, 100), 
+                            {
+                              label: 'Disk I/O',
+                              value: Math.min((testResult.diskRead + testResult.diskWrite) / 2, 100),
                               color: 'orange',
                               icon: 'ri-hard-drive-line',
                               detail: `Read ${testResult.diskRead}KB / Write ${testResult.diskWrite}KB`
