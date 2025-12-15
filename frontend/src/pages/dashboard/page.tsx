@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
-import { functionApi } from '../../services/functionApi'; // Import API
+import { functionApi } from '../../services/functionApi';
+import { logApi } from '../../services/logApi';
 
 interface FunctionItem {
   id: string;
@@ -46,13 +47,13 @@ export default function DashboardPage() {
         const transformed = data.map((d: any) => ({
           id: d.functionId,
           name: d.name,
-          language: d.runtime, // Map runtime 'python' -> 'Python' roughly
-          status: d.status?.toLowerCase() || 'inactive',
-          lastDeployed: d.local_stats?.lastRun ? new Date(d.local_stats.lastRun).toLocaleString() : '-',
-          invocations: d.local_stats?.calls || 0,
-          avgDuration: 0, // Not yet tracked
-          memory: 128, // Default or fetch detail
-          warmPool: 0 // Not tracked yet
+          language: d.runtime,
+          status: 'active', // If it's in the list, it is deployed and ready
+          lastDeployed: d.uploadedAt ? new Date(d.uploadedAt).toLocaleString() : '-',
+          invocations: 0, // Not provided by list API yet
+          avgDuration: 0,
+          memory: d.memoryMb || 128,
+          warmPool: 0
         }));
         setFunctions(transformed);
       } catch (e) {
@@ -65,26 +66,33 @@ export default function DashboardPage() {
     return () => clearInterval(poll);
   }, []);
 
-  // Auto-generate logs
+  // Fetch Real Logs
   useEffect(() => {
-    const interval = setInterval(() => {
-      const newLog: LogEntry = {
-        id: Date.now().toString(),
-        time: new Date().toLocaleTimeString('ko-KR', { hour12: false }),
-        type: ['warm', 'tuner', 'pool'][Math.floor(Math.random() * 3)] as 'warm' | 'tuner' | 'pool',
-        message: [
-          'func-01: Warm Start execution (45ms)',
-          'Auto-Tuner: func-03 optimized (256MB -> 128MB)',
-          'System: Replenishing Node.js Warm Pool (+1)',
-          'func-02: Cold Start avoided (Warm Pool)',
-          'Auto-Tuner: Analyzing execution patterns...',
-        ][Math.floor(Math.random() * 5)],
-        icon: ['🚀', '🔧', '♻️'][Math.floor(Math.random() * 3)]
-      };
+    async function fetchLogs() {
+      try {
+        // Fetch raw logs
+        // Note: Controller returns raw array of objects
+        const rawLogs = await logApi.getLogs();
+        // Check if rawLogs is array or wrapped
+        const logData = Array.isArray(rawLogs) ? rawLogs : (rawLogs as any).logs || [];
 
-      setLogs(prev => [...prev.slice(-9), newLog]);
-    }, 5000);
+        // Transform to frontend format
+        const transformed: LogEntry[] = logData.map((log: any) => ({
+          id: log.id || Math.random().toString(),
+          time: new Date(log.timestamp).toLocaleTimeString('ko-KR', { hour12: false }),
+          type: log.level === 'WARN' ? 'pool' : log.level === 'INFO' ? 'warm' : 'tuner', // Simple mapping
+          message: `${log.msg} ${log.ip ? `(${log.ip})` : ''}`,
+          icon: log.level === 'WARN' ? '⚠️' : log.level === 'ERROR' ? '❌' : 'ℹ️'
+        })).slice(0, 50); // Limit to recent 50
 
+        setLogs(transformed);
+      } catch (e) {
+        console.error("Failed to fetch logs", e);
+      }
+    }
+
+    fetchLogs();
+    const interval = setInterval(fetchLogs, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -307,8 +315,8 @@ export default function DashboardPage() {
                           {log.time}
                         </span>
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${log.type === 'warm' ? 'bg-purple-100 text-purple-700' :
-                            log.type === 'tuner' ? 'bg-green-100 text-green-700' :
-                              'bg-blue-100 text-blue-700'
+                          log.type === 'tuner' ? 'bg-green-100 text-green-700' :
+                            'bg-blue-100 text-blue-700'
                           }`}>
                           {log.type === 'warm' ? 'Warm Start' : log.type === 'tuner' ? 'Auto-Tuner' : 'Pool Management'}
                         </span>
