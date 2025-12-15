@@ -203,8 +203,13 @@ func Handler(event map[string]interface{}) (Response, error) {
       // Since we set .env, we can use `functionApi` if we add an upload method.
       // Let's overwrite this handleDeploy to use a custom upload.
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/upload`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://43.203.103.112:8080'}/upload`, {
         method: 'POST',
+        headers: {
+          'x-api-key': 'test-api-key',
+          'x-runtime': formData.language,
+          'x-memory-mb': formData.memory.toString()
+        },
         body: formDataToSend
       });
 
@@ -498,8 +503,8 @@ func Handler(event map[string]interface{}) (Response, error) {
                         placeholder="handler.main"
                         disabled={isHandlerDisabled}
                         className={`w-full px-4 py-3 border border-purple-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all ${isHandlerDisabled
-                            ? 'bg-gray-100 text-gray-600 cursor-not-allowed'
-                            : 'bg-white'
+                          ? 'bg-gray-100 text-gray-600 cursor-not-allowed'
+                          : 'bg-white'
                           }`}
                       />
                       {isHandlerDisabled && (
@@ -525,8 +530,8 @@ func Handler(event map[string]interface{}) (Response, error) {
                           key={lang.id}
                           onClick={() => handleLanguageChange(lang.id)}
                           className={`p-4 rounded-xl border-2 transition-all cursor-pointer ${formData.language === lang.id
-                              ? 'border-purple-400 bg-gradient-to-br from-purple-50 to-pink-50 shadow-md'
-                              : 'border-purple-100 bg-white hover:border-purple-200 hover:shadow-sm'
+                            ? 'border-purple-400 bg-gradient-to-br from-purple-50 to-pink-50 shadow-md'
+                            : 'border-purple-100 bg-white hover:border-purple-200 hover:shadow-sm'
                             }`}
                         >
                           <i className={`${lang.icon} text-3xl mb-2 ${formData.language === lang.id ? 'text-purple-600' : 'text-gray-600'
@@ -885,19 +890,19 @@ func Handler(event map[string]interface{}) (Response, error) {
                 <div
                   key={index}
                   className={`relative border-2 rounded-xl p-5 transition-all duration-500 ${deploymentStep > index
-                      ? 'border-green-400 bg-green-50'
-                      : deploymentStep === index
-                        ? `border-transparent bg-gradient-to-r ${step.color} shadow-lg`
-                        : 'border-gray-200 bg-gray-50 opacity-50'
+                    ? 'border-green-400 bg-green-50'
+                    : deploymentStep === index
+                      ? `border-transparent bg-gradient-to-r ${step.color} shadow-lg`
+                      : 'border-gray-200 bg-gray-50 opacity-50'
                     }`}
                 >
                   <div className="flex items-start gap-4">
                     <div
                       className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${deploymentStep > index
-                          ? 'bg-green-500'
-                          : deploymentStep === index
-                            ? 'bg-white'
-                            : 'bg-gray-300'
+                        ? 'bg-green-500'
+                        : deploymentStep === index
+                          ? 'bg-white'
+                          : 'bg-gray-300'
                         }`}
                     >
                       {deploymentStep > index ? (
@@ -1464,8 +1469,8 @@ func Handler(event map[string]interface{}) (Response, error) {
                 <button
                   onClick={() => setActiveTestTab('input')}
                   className={`px-4 py-3 font-semibold text-sm transition-all cursor-pointer ${activeTestTab === 'input'
-                      ? 'text-purple-600 border-b-2 border-purple-600 bg-white'
-                      : 'text-gray-600 hover:text-gray-900'
+                    ? 'text-purple-600 border-b-2 border-purple-600 bg-white'
+                    : 'text-gray-600 hover:text-gray-900'
                     }`}
                 >
                   <i className="ri-code-line mr-2"></i>
@@ -1474,8 +1479,8 @@ func Handler(event map[string]interface{}) (Response, error) {
                 <button
                   onClick={() => setActiveTestTab('result')}
                   className={`px-4 py-3 font-semibold text-sm transition-all cursor-pointer ${activeTestTab === 'result'
-                      ? 'text-purple-600 border-b-2 border-purple-600 bg-white'
-                      : 'text-gray-600 hover:text-gray-900'
+                    ? 'text-purple-600 border-b-2 border-purple-600 bg-white'
+                    : 'text-gray-600 hover:text-gray-900'
                     }`}
                 >
                   <i className="ri-terminal-line mr-2"></i>
@@ -1484,8 +1489,8 @@ func Handler(event map[string]interface{}) (Response, error) {
                 <button
                   onClick={() => setActiveTestTab('analysis')}
                   className={`px-4 py-3 font-semibold text-sm transition-all cursor-pointer ${activeTestTab === 'analysis'
-                      ? 'text-purple-600 border-b-2 border-purple-600 bg-white'
-                      : 'text-gray-600 hover:text-gray-900'
+                    ? 'text-purple-600 border-b-2 border-purple-600 bg-white'
+                    : 'text-gray-600 hover:text-gray-900'
                     }`}
                 >
                   <i className="ri-bar-chart-line mr-2"></i>
@@ -1534,8 +1539,8 @@ func Handler(event map[string]interface{}) (Response, error) {
                     <div className="space-y-4">
                       {/* Status */}
                       <div className={`rounded-xl p-4 border-2 ${testResult.success
-                          ? 'bg-green-50 border-green-300'
-                          : 'bg-red-50 border-red-300'
+                        ? 'bg-green-50 border-green-300'
+                        : 'bg-red-50 border-red-300'
                         }`}>
                         <div className="flex items-center gap-3">
                           <div className={`w-10 h-10 rounded-full flex items-center justify-center ${testResult.success ? 'bg-green-500' : 'bg-red-500'
