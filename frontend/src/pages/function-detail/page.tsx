@@ -92,9 +92,9 @@ export default function FunctionDetailPage() {
             : 100
         };
 
-        setFunctionItem(fnData || mockFunctionData);
+        setFunctionItem(fnData);
         setMetrics(uiMetrics);
-        setLogs((logsData && logsData.length > 0) ? logsData : mockLogsData);
+        setLogs((logsData && logsData.length > 0) ? logsData : []);
       } catch (error) {
         console.error('Failed to load function details:', error);
       } finally {
@@ -364,8 +364,19 @@ export default function FunctionDetailPage() {
                     <i className="ri-arrow-left-line text-lg"></i>
                   </button>
                   <div>
-                    <h1 className="text-2xl font-bold text-gray-900">{id}</h1>
-                    <p className="text-sm text-gray-600 mt-1">함수 상세 정보 및 실행 관리</p>
+                    <h1 className="text-2xl font-bold text-gray-900">{functionData.name}</h1>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded font-mono border border-gray-200">
+                        ID: {id}
+                      </span>
+                      <button
+                        onClick={() => navigator.clipboard.writeText(id || '')}
+                        className="text-gray-400 hover:text-blue-500 transition-colors"
+                        title="ID 복사"
+                      >
+                        <i className="ri-file-copy-line text-sm"></i>
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
