@@ -196,12 +196,13 @@ func Handler(event map[string]interface{}) (Response, error) {
 
       // Use configured API URL or Fallback
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://43.203.112.139:8080'}/upload`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://16.184.11.69:8080'}/upload`, {
         method: 'POST',
         headers: {
           'x-api-key': 'test-api-key',
           'x-runtime': formData.language,
-          'x-memory-mb': formData.memory.toString()
+          'x-memory-mb': formData.memory.toString(),
+          'x-function-name': encodeURIComponent(formData.name)
         },
         body: formDataToSend
       });
@@ -327,15 +328,19 @@ func Handler(event map[string]interface{}) (Response, error) {
       const result: any = await functionApi.invokeFunction(deployedFunctionId, payload);
       const endTime = Date.now();
 
+      // Fix: Handle Worker response format (exitCode/status) vs HTTP format (statusCode)
+      const isSuccess = result.status === 'SUCCESS' || (result.statusCode >= 200 && result.statusCode < 300);
+      const statusCode = result.statusCode || (result.exitCode === 0 ? 200 : 500);
+
       setTestResult({
-        success: result.statusCode >= 200 && result.statusCode < 300,
-        statusCode: result.statusCode,
-        responseTime: endTime - startTime, // Client-side measured latency
-        memoryUsed: 'N/A', // Not currently returned by standard invocation response
-        output: typeof result.body === 'string' ? result.body : JSON.stringify(result.body, null, 2),
+        success: isSuccess,
+        statusCode: statusCode,
+        responseTime: endTime - startTime,
+        memoryUsed: result.peakMemoryBytes ? Math.round(result.peakMemoryBytes / 1024 / 1024) + ' MB' : 'N/A',
+        output: result.stdout || result.body || (typeof result === 'string' ? result : JSON.stringify(result, null, 2)),
         metrics: {
           cpu: 0,
-          memory: 0,
+          memory: result.peakMemoryBytes || 0,
           network: 0,
           disk: 0
         }
@@ -1194,7 +1199,7 @@ func Handler(event map[string]interface{}) (Response, error) {
                 <button
                   onClick={() => {
                     setShowSuccessModal(false);
-                    navigate(`/function/${formData.name}`);
+                    navigate(`/function/${deployedFunctionId}`);
                   }}
                   className="w-full px-6 py-3 bg-gradient-to-r from-purple-400 to-pink-400 text-white font-semibold rounded-xl hover:shadow-lg transition-all whitespace-nowrap cursor-pointer flex items-center justify-center gap-2"
                 >
@@ -1377,7 +1382,7 @@ func Handler(event map[string]interface{}) (Response, error) {
                 <button
                   onClick={() => {
                     setShowWarningModal(false);
-                    navigate(`/function/${formData.name}`);
+                    navigate(`/function/${deployedFunctionId}`);
                   }}
                   className="w-full px-6 py-3 bg-gradient-to-r from-purple-400 to-pink-400 text-white font-semibold rounded-xl hover:shadow-lg transition-all whitespace-nowrap cursor-pointer flex items-center justify-center gap-2"
                 >
