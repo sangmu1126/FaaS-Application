@@ -36,7 +36,7 @@ export default function LogsPage() {
         timestamp: l.timestamp,
         functionName: l.functionName || 'unknown',
         level: l.level === 'warn' ? 'warning' : l.level,
-        message: l.message,
+        message: l.message || l.msg,
         duration: l.duration || 0,
         requestId: l.requestId || '-'
       })));
