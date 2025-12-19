@@ -558,11 +558,11 @@ export default function FunctionDetailPage() {
                             <td className="px-6 py-4 text-sm text-gray-700">{inv.duration}ms</td>
                             <td className="px-6 py-4 text-sm text-gray-700">{inv.memory} MB</td>
                             <td className="px-6 py-4">
-                              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${inv.status === 'success'
+                              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${inv.status?.toLowerCase() === 'success'
                                 ? 'bg-green-50 text-green-600 border border-green-200'
                                 : 'bg-red-50 text-red-600 border border-red-200'
                                 }`}>
-                                {inv.status === 'success' ? '성공' : '실패'}
+                                {inv.status?.toLowerCase() === 'success' ? '성공' : '실패'}
                               </span>
                             </td>
                           </tr>
