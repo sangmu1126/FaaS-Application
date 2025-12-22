@@ -112,14 +112,55 @@ export default function FunctionDetailPage() {
     return () => clearInterval(interval);
   }, [id, autoRefresh]);
 
-  // Derived data
-  const recentInvocations = logs.slice(0, 5).map(log => ({
-    id: log.id,
-    timestamp: new Date(log.timestamp).toLocaleTimeString(),
-    duration: log.duration,
-    status: log.status,
-    memory: log.memory
-  }));
+  // Derived data - Filter for function-relevant logs only
+  const recentInvocations = logs
+    .filter(log => {
+      // Only show logs directly related to function activity
+      if (!log.msg) return false;
+      return (
+        log.msg.includes('Function Executed') ||
+        log.msg.includes('Upload Success') ||
+        log.msg.includes('Function Updated') ||
+        log.msg.includes('Function Deleted') ||
+        log.msg.includes('Run Request') ||
+        log.msg.includes('Run Error')
+      );
+    })
+    .slice(0, 5)
+    .map(log => {
+      // Infers status from message or level
+      let status = log.status || 'UNKNOWN';
+      let duration: any = log.duration || '-';
+      let memory: any = log.memory || '-';
+
+      // Map based on log message content
+      if (log.msg) {
+        if (log.msg.includes('Function Executed')) {
+          // Actual execution result - use status from log or infer from level
+          status = log.status || (log.level === 'ERROR' ? 'ERROR' : 'SUCCESS');
+          duration = log.duration || 0;
+          memory = log.memory || 0;
+        } else if (log.msg.includes('Upload Success')) {
+          status = 'UPLOAD';
+        } else if (log.msg.includes('Function Updated')) {
+          status = 'UPDATE';
+        } else if (log.msg.includes('Function Deleted')) {
+          status = 'DELETE';
+        } else if (log.msg.includes('Run Request')) {
+          status = 'PENDING';
+        } else if (log.msg.includes('Run Error')) {
+          status = 'ERROR';
+        }
+      }
+
+      return {
+        id: log.id,
+        timestamp: new Date(log.timestamp).toLocaleTimeString(),
+        duration: duration,
+        status: status,
+        memory: memory
+      };
+    });
 
   const functionData = functionItem ? {
     id: functionItem.id,
@@ -555,14 +596,26 @@ export default function FunctionDetailPage() {
                         {recentInvocations.map((inv) => (
                           <tr key={inv.id} className="hover:bg-gray-50/50 transition-colors">
                             <td className="px-6 py-4 text-sm text-gray-700">{inv.timestamp}</td>
-                            <td className="px-6 py-4 text-sm text-gray-700">{inv.duration}ms</td>
-                            <td className="px-6 py-4 text-sm text-gray-700">{inv.memory} MB</td>
+                            <td className="px-6 py-4 text-sm text-gray-700">{inv.duration === '-' ? '-' : `${inv.duration}ms`}</td>
+                            <td className="px-6 py-4 text-sm text-gray-700">{inv.memory === '-' ? '-' : `${inv.memory} MB`}</td>
                             <td className="px-6 py-4">
-                              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${inv.status?.toLowerCase() === 'success'
-                                ? 'bg-green-50 text-green-600 border border-green-200'
-                                : 'bg-red-50 text-red-600 border border-red-200'
+                              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${inv.status === 'SUCCESS' ? 'bg-green-50 text-green-600 border border-green-200' :
+                                  inv.status === 'UPLOAD' ? 'bg-blue-50 text-blue-600 border border-blue-200' :
+                                    inv.status === 'UPDATE' ? 'bg-purple-50 text-purple-600 border border-purple-200' :
+                                      inv.status === 'PENDING' ? 'bg-yellow-50 text-yellow-600 border border-yellow-200' :
+                                        inv.status === 'DELETE' ? 'bg-gray-50 text-gray-600 border border-gray-200' :
+                                          'bg-red-50 text-red-600 border border-red-200'
                                 }`}>
-                                {inv.status?.toLowerCase() === 'success' ? '성공' : '실패'}
+                                {
+                                  inv.status === 'SUCCESS' ? '성공' :
+                                    inv.status === 'UPLOAD' ? '업로드' :
+                                      inv.status === 'UPDATE' ? '업데이트' :
+                                        inv.status === 'PENDING' ? '대기' :
+                                          inv.status === 'DELETE' ? '삭제' :
+                                            inv.status === 'TIMEOUT' ? '시간초과' :
+                                              inv.status === 'ERROR' ? '실패' :
+                                                '알수없음'
+                                }
                               </span>
                             </td>
                           </tr>
