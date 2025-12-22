@@ -19,7 +19,7 @@ export default function DeployPage() {
   const [testRunning, setTestRunning] = useState(false);
   const [testResult, setTestResult] = useState<any>(null);
   const [activeTestTab, setActiveTestTab] = useState<'input' | 'result' | 'analysis'>('input');
-  const [testInput, setTestInput] = useState('{\n  "message": "Hello NanoGrid"\n}');
+  const [testInput, setTestInput] = useState('{\n  "message": "Hello FaaS"\n}');
   const [githubUrl, setGithubUrl] = useState('');
   const [githubBranch, setGithubBranch] = useState('main');
   const [githubFilePath, setGithubFilePath] = useState('');
@@ -53,7 +53,7 @@ export default function DeployPage() {
   const codeTemplates: Record<string, string> = {
     python: `def handler(event, context):
     """
-    NanoGrid Function Handler
+    FaaS Function Handler
     
     Args:
         event: 입력 이벤트 데이터
@@ -64,7 +64,7 @@ export default function DeployPage() {
     """
     return {
         'statusCode': 200,
-        'body': 'Hello from NanoGrid!'
+        'body': 'Hello from FaaS!'
     }
 
 if __name__ == "__main__":
@@ -82,7 +82,7 @@ if __name__ == "__main__":
     print(json.dumps(handler(event, {})))`,
     nodejs: `exports.handler = async (event, context) => {
     /**
-     * NanoGrid Function Handler
+     * FaaS Function Handler
      * 
      * @param {Object} event - 입력 이벤트 데이터
      * @param {Object} context - 실행 컨텍스트
@@ -90,22 +90,39 @@ if __name__ == "__main__":
      */
     return {
         statusCode: 200,
-        body: 'Hello from NanoGrid!'
+        body: 'Hello from FaaS!'
     };
-};`,
+};
+
+if (require.main === module) {
+    const payload = process.env.PAYLOAD ? JSON.parse(process.env.PAYLOAD) : {};
+    exports.handler(payload, {})
+        .then(res => console.log(JSON.stringify(res)))
+        .catch(err => console.error(err));
+}`,
     cpp: `#include <iostream>
 #include <string>
+#include <cstdlib>
 
 extern "C" {
     const char* handler(const char* event) {
-        // NanoGrid Function Handler
-        return "{\\"statusCode\\": 200, \\"body\\": \\"Hello from NanoGrid!\\"}";
+        // FaaS Function Handler
+        return "{\\"statusCode\\": 200, \\"body\\": \\"Hello from FaaS!\\"}";
     }
+}
+
+int main() {
+    const char* env_payload = std::getenv("PAYLOAD");
+    std::string event = env_payload ? env_payload : "{}";
+    std::cout << handler(event.c_str()) << std::endl;
+    return 0;
 }`,
     go: `package main
 
 import (
     "encoding/json"
+    "fmt"
+    "os"
 )
 
 type Response struct {
@@ -114,11 +131,23 @@ type Response struct {
 }
 
 func Handler(event map[string]interface{}) (Response, error) {
-    // NanoGrid Function Handler
+    // FaaS Function Handler
     return Response{
         StatusCode: 200,
-        Body:       "Hello from NanoGrid!",
+        Body:       "Hello from FaaS!",
     }, nil
+}
+
+func main() {
+    payload := os.Getenv("PAYLOAD")
+    var event map[string]interface{}
+    if payload != "" {
+        json.Unmarshal([]byte(payload), &event)
+    }
+    
+    res, _ := Handler(event)
+    output, _ := json.Marshal(res)
+    fmt.Println(string(output))
 }`
   };
 
@@ -405,7 +434,7 @@ func Handler(event map[string]interface{}) (Response, error) {
       icon: 'ri-checkbox-circle-line',
       title: '✅ Ready to Run',
       description: '배포 완료! 예상 Cold Start 시간: 0ms',
-      detail: 'NanoGrid Warm Pool에 의해 보호되고 있습니다.',
+      detail: 'Warm Pool에 의해 보호되고 있습니다.',
       color: 'from-green-400 to-emerald-400',
       errorMessages: []
     }
