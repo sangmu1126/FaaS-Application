@@ -48,11 +48,15 @@ export default function LogsPage() {
           return true;
         })
         .map((l: any) => {
+          // Normalize Level
+          let normalizedLevel = (l.level || 'info').toLowerCase();
+          if (normalizedLevel === 'warn') normalizedLevel = 'warning';
+
           const msg = l.msg || l.message;
           let status = 'INFO';
 
           if (msg.includes('Function Executed')) {
-            status = l.level === 'ERROR' ? 'ERROR' : 'SUCCESS';
+            status = normalizedLevel === 'error' ? 'ERROR' : 'SUCCESS';
           } else if (msg.includes('Run Request')) {
             status = 'PENDING';
           } else if (msg.includes('Upload Success')) {
@@ -73,7 +77,7 @@ export default function LogsPage() {
             id: l.id,
             timestamp: l.timestamp,
             functionName: functionNameMap[l.functionId] || l.functionId || 'Unknown',
-            level: l.level === 'warn' ? 'warning' : l.level,
+            level: normalizedLevel,
             message: msg,
             duration: duration,
             requestId: l.requestId || '-',
@@ -159,8 +163,6 @@ export default function LogsPage() {
     setCurrentPage(1);
   };
 
-
-
   // ... (useEffect remains same) ...
 
   // Helper for Status Badge
@@ -217,7 +219,7 @@ export default function LogsPage() {
                   >
                     <option value="all">전체</option>
                     <option value="info">Info</option>
-                    <option value="warn">Warning</option>
+                    <option value="warning">Warning</option>
                     <option value="error">Error</option>
                   </select>
                 </div>
