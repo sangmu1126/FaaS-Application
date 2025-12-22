@@ -25,34 +25,69 @@ export default function LogsPage() {
   const [functionsList, setFunctionsList] = useState<{ id: string; name: string }[]>([]);
   const logsPerPage = 20;
 
+  // Function Name Map
+  const functionNameMap = useMemo(() => {
+    return functionsList.reduce((acc, func) => {
+      acc[func.id] = func.name;
+      return acc;
+    }, {} as Record<string, string>);
+  }, [functionsList]);
+
   const fetchLogs = async () => {
     try {
       setIsRefreshing(true);
       const response = await logApi.getLogs();
-      const logsData = Array.isArray(response) ? response : (response as any).logs || [];
-      // Map API response to Component LogEntry if needed, or cast
-      setLogs(logsData.map((l: any) => ({
-        id: l.id,
-        timestamp: l.timestamp,
-        functionName: l.functionName || 'unknown',
-        level: l.level === 'warn' ? 'warning' : l.level,
-        message: l.message || l.msg,
-        duration: l.duration || 0,
-        requestId: l.requestId || '-'
-      })));
+      const rawLogs = Array.isArray(response) ? response : (response as any).logs || [];
+
+      // Filter & Map Logs
+      const processedLogs: LogEntry[] = rawLogs
+        .filter((l: any) => {
+          // Filter out irrelevant system logs
+          const msg = l.msg || l.message;
+          if (msg.includes('Redis Connected') || msg.includes('Subscribed') || msg.includes('Started')) return false;
+          return true;
+        })
+        .map((l: any) => {
+          const msg = l.msg || l.message;
+          let status = 'INFO';
+
+          if (msg.includes('Function Executed')) {
+            status = l.level === 'ERROR' ? 'ERROR' : 'SUCCESS';
+          } else if (msg.includes('Run Request')) {
+            status = 'PENDING';
+          } else if (msg.includes('Upload Success')) {
+            status = 'UPLOAD';
+          } else if (msg.includes('Function Updated')) {
+            status = 'UPDATE';
+          } else if (msg.includes('Function Deleted')) {
+            status = 'DELETE';
+          } else if (msg.includes('Timeout')) {
+            status = 'TIMEOUT';
+          }
+
+          // Normalize Duration/Memory
+          const duration = l.duration || l.durationMs || 0;
+          const memory = l.memory || l.memoryMb || 0;
+
+          return {
+            id: l.id,
+            timestamp: l.timestamp,
+            functionName: functionNameMap[l.functionId] || l.functionId || 'Unknown',
+            level: l.level === 'warn' ? 'warning' : l.level,
+            message: msg,
+            duration: duration,
+            requestId: l.requestId || '-',
+            // @ts-ignore - Adding status/memory to object for display
+            status: status,
+            memory: memory
+          };
+        });
+
+      setLogs(processedLogs);
     } catch (error) {
       console.error('Failed to fetch logs:', error);
-      // Fallback Mock Data
-      const mockLogs: LogEntry[] = Array.from({ length: 20 }, (_, i) => ({
-        id: `log-mock-${i}`,
-        timestamp: new Date().toISOString(),
-        functionName: ['image-processor', 'data-analyzer'][i % 2],
-        level: i % 5 === 0 ? 'error' : 'info',
-        message: i % 5 === 0 ? 'Connection timeout' : 'Function executed successfully',
-        duration: 100 + i * 10,
-        requestId: `req-${i}`
-      }));
-      setLogs(mockLogs);
+      // Fallback Mock Data removed for production
+      setLogs([]);
     } finally {
       setIsRefreshing(false);
     }
@@ -124,22 +159,22 @@ export default function LogsPage() {
     setCurrentPage(1);
   };
 
-  const getLevelColor = (level: string) => {
-    const colors: Record<string, string> = {
-      'info': 'bg-blue-50 text-blue-600 border-blue-200',
-      'warn': 'bg-yellow-50 text-yellow-600 border-yellow-200',
-      'error': 'bg-red-50 text-red-600 border-red-200'
-    };
-    return colors[level] || 'bg-gray-50 text-gray-600';
-  };
 
-  const getLevelIcon = (level: string) => {
-    const icons: Record<string, string> = {
-      'info': 'ri-information-line',
-      'warn': 'ri-alert-line',
-      'error': 'ri-error-warning-line'
-    };
-    return icons[level] || 'ri-information-line';
+
+  // ... (useEffect remains same) ...
+
+  // Helper for Status Badge
+  const getStatusConfig = (status: string) => {
+    switch (status) {
+      case 'SUCCESS': return { color: 'bg-green-50 text-green-700 border-green-200', label: '성공', icon: 'ri-check-line' };
+      case 'ERROR': return { color: 'bg-red-50 text-red-700 border-red-200', label: '실패', icon: 'ri-close-line' };
+      case 'PENDING': return { color: 'bg-yellow-50 text-yellow-700 border-yellow-200', label: '대기', icon: 'ri-loader-4-line animate-spin' };
+      case 'UPLOAD': return { color: 'bg-blue-50 text-blue-700 border-blue-200', label: '업로드', icon: 'ri-upload-cloud-line' };
+      case 'UPDATE': return { color: 'bg-purple-50 text-purple-700 border-purple-200', label: '업데이트', icon: 'ri-refresh-line' };
+      case 'DELETE': return { color: 'bg-gray-50 text-gray-700 border-gray-200', label: '삭제', icon: 'ri-delete-bin-line' };
+      case 'TIMEOUT': return { color: 'bg-orange-50 text-orange-700 border-orange-200', label: '시간초과', icon: 'ri-timer-line' };
+      default: return { color: 'bg-gray-50 text-gray-600 border-gray-200', label: '시스템', icon: 'ri-information-line' };
+    }
   };
 
   return (
@@ -242,39 +277,67 @@ export default function LogsPage() {
               </div>
 
               <div className="divide-y divide-purple-100">
-                {currentLogs.map((log) => (
-                  <div key={log.id} className="px-6 py-4 hover:bg-gray-50/30 transition-colors">
-                    <div className="flex items-start gap-4">
-                      <div className="flex-shrink-0 mt-1">
-                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center border ${getLevelColor(log.level)}`}>
-                          <i className={`${getLevelIcon(log.level)} text-sm`}></i>
+                {currentLogs.map((log) => {
+                  // @ts-ignore
+                  const statusConfig = getStatusConfig(log.status || 'INFO');
+
+                  return (
+                    <div key={log.id} className="px-6 py-4 hover:bg-gray-50/50 transition-colors border-l-4 border-l-transparent hover:border-l-blue-500">
+                      <div className="flex items-center gap-4">
+                        {/* Status Icon Box */}
+                        <div className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center border ${statusConfig.color} bg-opacity-50`}>
+                          <i className={`${statusConfig.icon} text-lg`}></i>
+                        </div>
+
+                        {/* Main Content */}
+                        <div className="flex-1 min-w-0 grid grid-cols-12 gap-4 items-center">
+                          {/* Col 1: Function & Time */}
+                          <div className="col-span-4">
+                            <h3 className="text-sm font-bold text-gray-900 truncate mb-1">
+                              {log.functionName}
+                            </h3>
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <i className="ri-time-line"></i>
+                              <span>{new Date(log.timestamp).toLocaleString()}</span>
+                            </div>
+                          </div>
+
+                          {/* Col 2: Status Badge */}
+                          <div className="col-span-2">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${statusConfig.color}`}>
+                              {statusConfig.icon.includes('spin') && <i className="ri-loader-4-line animate-spin"></i>}
+                              {statusConfig.label}
+                            </span>
+                          </div>
+
+                          {/* Col 3: Metrics */}
+                          <div className="col-span-4 flex items-center gap-6">
+                            <div className="flex flex-col">
+                              <span className="text-xs text-gray-500 mb-0.5">응답 시간</span>
+                              <span className="text-sm font-mono font-medium text-gray-700">
+                                {log.duration ? `${log.duration}ms` : '-'}
+                              </span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-xs text-gray-500 mb-0.5">메모리</span>
+                              <span className="text-sm font-mono font-medium text-gray-700">
+                                {/* @ts-ignore */}
+                                {log.memory ? `${log.memory} MB` : '-'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Col 4: Action */}
+                          <div className="col-span-2 flex justify-end">
+                            <button className="text-gray-400 hover:text-blue-600 transition-colors p-2 rounded-full hover:bg-blue-50">
+                              <i className="ri-arrow-right-s-line text-xl"></i>
+                            </button>
+                          </div>
                         </div>
                       </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 mb-2">
-                          <span className="text-sm font-mono text-gray-500">{log.timestamp}</span>
-                          <span className="text-sm font-semibold text-gray-900">{log.functionName}</span>
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getLevelColor(log.level)}`}>
-                            {log.level.toUpperCase()}
-                          </span>
-                          <span className="text-xs text-gray-500">{log.duration}ms</span>
-                        </div>
-                        <p className="text-sm text-gray-700 mb-2">{log.message}</p>
-                        <div className="flex items-center gap-4 text-xs text-gray-500">
-                          <span>Request ID: {log.requestId}</span>
-                          <button className="text-blue-600 hover:text-blue-700 font-medium cursor-pointer">
-                            자세히 보기
-                          </button>
-                        </div>
-                      </div>
-
-                      <button className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-50 transition-colors cursor-pointer">
-                        <i className="ri-more-2-fill text-gray-600"></i>
-                      </button>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
