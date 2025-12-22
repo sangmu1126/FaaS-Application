@@ -257,6 +257,14 @@ export default function DashboardPage() {
                             </Link>
                           </td>
                           <td className="px-6 py-4">
+                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(func.status)}`}>
+                              {func.status === 'deploying' && (
+                                <i className="ri-loader-4-line animate-spin"></i>
+                              )}
+                              {getStatusText(func.status)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
                               <i className={`${getLanguageIcon(func.language)} text-lg text-gray-600`}></i>
                               <span className="text-sm text-gray-700">{func.language}</span>
@@ -264,14 +272,6 @@ export default function DashboardPage() {
                           </td>
                           <td className="px-6 py-4">
                             <span className="text-sm text-gray-700">{func.memory}MB</span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(func.status)}`}>
-                              {func.status === 'deploying' && (
-                                <i className="ri-loader-4-line animate-spin"></i>
-                              )}
-                              {getStatusText(func.status)}
-                            </span>
                           </td>
                           <td className="px-6 py-4">
                             <span className="text-sm text-gray-600">{func.lastDeployed}</span>
