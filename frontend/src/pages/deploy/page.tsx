@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Sidebar from '../dashboard/components/Sidebar';
 import Header from '../dashboard/components/Header';
 import { functionApi } from '../../services/functionApi'; // Import API
+import { CONFIG } from '../../config';
 import JSZip from 'jszip';
 
 export default function DeployPage() {
@@ -228,10 +229,10 @@ func main() {
 
       // Use configured API URL or Fallback
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://16.184.11.69:8080'}/upload`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'}/upload`, {
         method: 'POST',
         headers: {
-          'x-api-key': 'test-api-key',
+          'x-api-key': CONFIG.API_KEY,
           'x-runtime': formData.language,
           'x-memory-mb': formData.memory.toString(),
           'x-function-name': encodeURIComponent(formData.name)
