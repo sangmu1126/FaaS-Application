@@ -32,7 +32,7 @@ class ApiClient {
   ): Promise<T> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'x-api-key': 'test-api-key',
+      'x-api-key': CONFIG.API_KEY,
       ...(options.headers as Record<string, string>),
     };
 
