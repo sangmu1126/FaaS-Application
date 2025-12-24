@@ -58,6 +58,7 @@ Create a `.env` file in the `backend` folder.
 # backend/.env
 PORT=3000
 AWS_ALB_URL=http://<YOUR_CONTROLLER_IP>:8080
+INFRA_API_KEY=test-api-key
 SLACK_BOT_TOKEN=xoxb-... (Optional)
 SLACK_CHANNEL_ID=C123... (Optional)
 ```
@@ -75,6 +76,6 @@ SLACK_CHANNEL_ID=C123... (Optional)
 
 **We manage configurations via files to avoid hardcoding.**
 
-- **Frontend**: Loads environment variables (`VITE_API_BASE_URL`) in `src/config.ts`.
+- **Frontend**: Loads environment variables (`VITE_API_BASE_URL`, `VITE_API_KEY`) in `src/config.ts`.
 - **Backend**: Loads environment variables using `dotenv` in `src/config/index.js`.
 - **Git**: Configuration files (`.env`) are registered in `.gitignore` and are not shared. Please inject environment variables upon deployment.
