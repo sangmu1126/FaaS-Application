@@ -201,5 +201,46 @@ export const gatewayController = {
             logger.error('Get Dashboard Stats Error', error);
             res.status(500).json({ error: error.message });
         }
+    },
+
+    // GET /system/status - Combined gateway + worker status
+    async getSystemStatus(req, res) {
+        try {
+            // Gateway status
+            const gateway = {
+                status: 'online',
+                uptime: process.uptime(),
+                timestamp: new Date().toISOString()
+            };
+
+            // Try to fetch worker health
+            let worker = { status: 'unknown' };
+            try {
+                const workerHealth = await proxyService.fetchWorkerHealth();
+                worker = workerHealth;
+            } catch (e) {
+                worker = { status: 'offline', error: e.message };
+            }
+
+            res.json({ gateway, worker });
+        } catch (error) {
+            logger.error('Get System Status Error', error);
+            res.status(500).json({ error: error.message });
+        }
+    },
+
+    // GET /worker/health - Direct worker health
+    async getWorkerHealth(req, res) {
+        try {
+            const health = await proxyService.fetchWorkerHealth();
+            res.json(health);
+        } catch (error) {
+            logger.error('Get Worker Health Error', error);
+            res.status(503).json({
+                status: 'offline',
+                error: error.message,
+                timestamp: new Date().toISOString()
+            });
+        }
     }
 };
