@@ -24,10 +24,7 @@ router.get('/logs', gatewayController.getLogs);
 
 // Health & Status
 router.get('/health', (req, res) => res.json({ status: 'OK', role: 'Smart Gateway' }));
-router.get('/system/status', (req, res) => res.json({
-    status: 'online',
-    uptime: process.uptime(),
-    timestamp: new Date().toISOString()
-}));
+router.get('/system/status', gatewayController.getSystemStatus);
+router.get('/worker/health', gatewayController.getWorkerHealth);
 
 export default router;
