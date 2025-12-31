@@ -50,13 +50,25 @@ export const logApi = {
     functionId: string,
     limit = 50
   ): Promise<LogEntry[]> => {
-    // Fallback to searching global logs
-    const allLogs = await apiClient.get<any[]>('/logs');
-    if (!Array.isArray(allLogs)) return [];
+    // Use dedicated endpoint for execution history
+    const response = await apiClient.get<any[]>(`/functions/${functionId}/logs?limit=${limit}`);
 
-    return allLogs
-      .filter(l => l.functionId === functionId)
-      .slice(0, limit);
+    if (!Array.isArray(response)) return [];
+
+    // Transform if needed (Backend returns correctly formatted objects mostly)
+    return response.map((log: any) => ({
+      id: log.id || log.requestId || Math.random().toString(),
+      functionId: functionId, // From argument
+      functionName: "Unknown", // Metadata not in log
+      time: new Date(log.timestamp || Date.now()).toLocaleTimeString(),
+      timestamp: log.timestamp || new Date().toISOString(),
+      type: log.status === 'SUCCESS' ? 'warm' : 'pool', // UI mapping hack
+      level: (log.status === 'ERROR' || log.status === 'TIMEOUT') ? 'error' : 'info',
+      message: log.message || "No output",
+      duration: log.duration || 0,
+      memory: log.memory || 0,
+      status: (log.status === 'SUCCESS' ? 'success' : 'error') as 'success' | 'error'
+    }));
   },
 
   // Get single log entry
