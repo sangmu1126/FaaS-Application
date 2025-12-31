@@ -1,6 +1,23 @@
-# FaaS Application Layer
+# 🖥️ FaaS Application Layer
 
-This directory contains the User Interface (Frontend) for the FaaS platform and the supporting Backend Proxy (BFF).
+<div align="center">
+
+![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react)
+![Vite](https://img.shields.io/badge/Vite-Fast-646CFF?style=for-the-badge&logo=vite)
+![TailwindCSS](https://img.shields.io/badge/Tailwind-CSS-38B2AC?style=for-the-badge&logo=tailwind-css)
+![Node](https://img.shields.io/badge/BFF-Node.js-339933?style=for-the-badge&logo=node.js)
+
+**User-Friendly FaaS Dashboard & BFF Layer**
+
+</div>
+
+---
+
+## 📖 Introduction
+
+This directory contains the **Web Frontend** for deploying functions, viewing logs, and monitoring system status, along with a supporting **Backend Proxy**. It is built with a modern React stack to provide an intuitive UI/UX.
+
+---
 
 ## 📂 Directory Structure
 
@@ -18,7 +35,7 @@ You need to install dependencies and run the server in each directory.
 
 ### 1. Frontend (React App)
 
-A web dashboard where users can deploy functions and check logs.
+The user dashboard for function management, execution, and log viewing.
 
 #### Installation & Run
 ```bash
@@ -29,20 +46,19 @@ npm run dev
 
 #### Configuration (.env)
 Create a `.env` file in the `frontend` folder and set the API server address.
-Refer to the `.env.example` file.
+Note: `.env` is not committed to Git for security (`.env.example` provided).
 
 ```ini
 # frontend/.env
 VITE_API_BASE_URL=http://<YOUR_CONTROLLER_IP>:8080
 ```
-> **Note**: For security reasons, the `.env` file is not uploaded to Git.
 
 ---
 
-### 2. Backend (Optional Proxy / Gateway)
+### 2. Backend (Optional Proxy)
 
-Acts as a BFF (Backend For Frontend) mediating between the Frontend and the FaaS Controller, or handling logging/Slack notifications.
-*Note: Currently, the Frontend might be configured to call the Controller API directly (check `config.ts`).*
+A BFF (Backend For Frontend) mediating between the Frontend and Infra Controller.
+It handles CORS, hides API keys, and aggregates logs.
 
 #### Installation & Run
 ```bash
@@ -52,30 +68,43 @@ npm run dev
 ```
 
 #### Configuration (.env)
-Create a `.env` file in the `backend` folder.
-
 ```ini
 # backend/.env
 PORT=3000
 AWS_ALB_URL=http://<YOUR_CONTROLLER_IP>:8080
 INFRA_API_KEY=test-api-key
-SLACK_BOT_TOKEN=xoxb-... (Optional)
-SLACK_CHANNEL_ID=C123... (Optional)
 ```
 
 ---
 
-## 🛠 Features
+## ✨ Features
 
-- **Function Management**: Upload, update, and delete functions
-- **Deployment**: Deploy functions with supported runtimes (Python, Node.js, C++, Go)
-- **Real-time Logs**: View execution logs in real-time
-- **AI Model Integration**: Select LLM models and request inference
+### 1. ⚡ Intuitive Function Deployment
+- **Drag & Drop**: Supports Zip file upload or direct code pasting.
+- **Multi-Runtime**: Python, Node.js, C++, and Go runtimes supported.
+- **Build Log**: Real-time visualization of deployment progress.
+
+### 2. 📊 Real-time Observability
+- **Log Explorer**: View execution logs, memory usage, and duration in real-time.
+- **System Status**: Global dashboard for Controller and Worker node status.
+- **Log Expansion**: Expand large log messages for detailed inspection.
+
+### 3. 🤖 AI Integration
+- **Model Selector**: Dynamically select AI models (LLM) per job.
+- **Prompt Engineering**: Test prompts directly within the Web UI.
+
+---
 
 ## ⚠️ Configuration Guide
 
-**We manage configurations via files to avoid hardcoding.**
+Configuration is managed via environment variables, not hardcoding.
 
-- **Frontend**: Loads environment variables (`VITE_API_BASE_URL`, `VITE_API_KEY`) in `src/config.ts`.
-- **Backend**: Loads environment variables using `dotenv` in `src/config/index.js`.
-- **Git**: Configuration files (`.env`) are registered in `.gitignore` and are not shared. Please inject environment variables upon deployment.
+- **Frontend**: Loads variables prefixed with `VITE_` in `src/config.ts`.
+- **Backend**: Uses `dotenv` for configuration management.
+- **Git**: All sensitive `.env` files are in `.gitignore`. Inject variables during deployment.
+
+---
+
+<div align="center">
+  <sub>Built with ❤️ by Softbank-Final Team</sub>
+</div>
