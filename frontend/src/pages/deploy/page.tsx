@@ -976,7 +976,7 @@ func main() {
                 <div className="inline-flex items-center gap-2 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-400 rounded-xl px-6 py-3">
                   <i className="ri-shield-check-line text-2xl text-green-600"></i>
                   <span className="font-bold text-green-900">
-                    NanoGrid Warm Pool에 의해 보호되고 있습니다
+                    FaaS Warm Pool에 의해 보호되고 있습니다
                   </span>
                 </div>
               </div>
@@ -1346,7 +1346,7 @@ func main() {
             {/* Support Link */}
             <div className="mt-6 pt-6 border-t border-gray-200">
               <p className="text-sm text-gray-600 text-center">
-                💡 NanoGrid는 배포 전 자동으로 코드를 검증하여 런타임 오류를 방지합니다
+                💡 FaaS는 배포 전 자동으로 코드를 검증하여 런타임 오류를 방지합니다
               </p>
             </div>
           </div>
@@ -1436,7 +1436,7 @@ func main() {
               {/* Note */}
               <div className="mt-6 pt-6 border-t border-gray-200">
                 <p className="text-sm text-gray-600">
-                  💡 NanoGrid Warm Pool은 사용 패턴을 학습하여 자동으로 최적화됩니다
+                  💡 FaaS Warm Pool은 사용 패턴을 학습하여 자동으로 최적화됩니다
                 </p>
               </div>
             </div>
