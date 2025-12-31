@@ -190,8 +190,6 @@ func main() {
     setShowDeploymentModal(true);
     setDeploymentStep(0);
 
-    let deploymentFailed = false;
-
     try {
       // Step 1: Code Packaging & Upload (Real Upload)
       // Sending FormData to /upload endpoint
@@ -263,7 +261,6 @@ func main() {
 
     } catch (error: any) {
       console.error('Deployment error:', error);
-      deploymentFailed = true;
       setFailureInfo({
         step: 1,
         message: error.message || 'Deployment Failed',
