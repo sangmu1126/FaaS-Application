@@ -112,55 +112,17 @@ export default function FunctionDetailPage() {
     return () => clearInterval(interval);
   }, [id, autoRefresh]);
 
-  // Derived data - Filter for function-relevant logs only
+  // Derived data - Per-function logs are already execution results
   const recentInvocations = logs
-    .filter(log => {
-      // Only show logs directly related to function activity
-      if (!log.msg) return false;
-      return (
-        log.msg.includes('Function Executed') ||
-        log.msg.includes('Upload Success') ||
-        log.msg.includes('Function Updated') ||
-        log.msg.includes('Function Deleted') ||
-        log.msg.includes('Run Request') ||
-        log.msg.includes('Run Error')
-      );
-    })
     .slice(0, 5)
-    .map(log => {
-      // Infers status from message or level
-      let status = log.status || 'UNKNOWN';
-      let duration: any = log.duration || '-';
-      let memory: any = log.memory || '-';
-
-      // Map based on log message content
-      if (log.msg) {
-        if (log.msg.includes('Function Executed')) {
-          // Actual execution result - use status from log or infer from level
-          status = log.status || (log.level === 'ERROR' ? 'ERROR' : 'SUCCESS');
-          duration = log.duration || 0;
-          memory = log.memory || 0;
-        } else if (log.msg.includes('Upload Success')) {
-          status = 'UPLOAD';
-        } else if (log.msg.includes('Function Updated')) {
-          status = 'UPDATE';
-        } else if (log.msg.includes('Function Deleted')) {
-          status = 'DELETE';
-        } else if (log.msg.includes('Run Request')) {
-          status = 'PENDING';
-        } else if (log.msg.includes('Run Error')) {
-          status = 'ERROR';
-        }
-      }
-
-      return {
-        id: log.id,
-        timestamp: new Date(log.timestamp).toLocaleTimeString(),
-        duration: duration,
-        status: status,
-        memory: memory
-      };
-    });
+    .map(log => ({
+      id: log.id || log.requestId,
+      timestamp: log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : '-',
+      duration: log.duration ?? '-',
+      // logApi transforms 'SUCCESS' -> 'success', convert back to uppercase for display
+      status: (log.status || 'UNKNOWN').toUpperCase(),
+      memory: log.memory ?? '-'
+    }));
 
   const functionData = functionItem ? {
     id: functionItem.id,
@@ -387,7 +349,7 @@ export default function FunctionDetailPage() {
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-gray-100">
-      <Sidebar onSystemStatusClick={() => { }} />
+      <Sidebar systemStatus={null} onSystemStatusClick={() => { }} />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
