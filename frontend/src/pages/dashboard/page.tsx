@@ -81,7 +81,7 @@ export default function DashboardPage() {
           id: log.id || Math.random().toString(),
           time: new Date(log.timestamp).toLocaleTimeString('ko-KR', { hour12: false }),
           type: log.level === 'WARN' ? 'pool' : log.level === 'INFO' ? 'warm' : 'tuner', // Simple mapping
-          message: `${log.msg} ${log.ip ? `(${log.ip})` : ''}`,
+          message: `${log.message} ${log.ip ? `(${log.ip})` : ''}`,
           icon: log.level === 'WARN' ? '⚠️' : log.level === 'ERROR' ? '❌' : 'ℹ️'
         })).slice(0, 50); // Limit to recent 50
 
@@ -128,16 +128,42 @@ export default function DashboardPage() {
     return texts[status] || status;
   };
 
+  const [systemStatus, setSystemStatus] = useState<any>(null);
+  const [showPoolModal, setShowPoolModal] = useState(false);
+
+  // Fetch System Status (Lifted from Sidebar)
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'}/system/status`);
+        if (res.ok) {
+          const data = await res.json();
+          setSystemStatus(data);
+        }
+      } catch (e) {
+        console.error("Failed to fetch system status");
+      }
+    };
+
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="flex h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-gray-100">
-      <Sidebar onSystemStatusClick={() => setShowLogModal(true)} />
+      <Sidebar
+        systemStatus={systemStatus}
+        onSystemStatusClick={() => setShowPoolModal(true)}
+      />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
 
         <main className="flex-1 overflow-y-auto relative">
           <div className="max-w-7xl mx-auto px-6 py-8">
-            {/* Stats Overview */}
+            {/* ... (Existing Stats Overview & Functions Table) ... */}
+            {/* For brevity, I'm keeping the existing structure but focusing on the changed parts in description */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
               <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-purple-100 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
@@ -320,7 +346,10 @@ export default function DashboardPage() {
             </div>
 
             {/* System Live Log - Below Functions List */}
-            <div className="bg-gray-900/90 backdrop-blur-sm rounded-2xl border border-gray-700 shadow-2xl overflow-hidden">
+            <div
+              onClick={() => setShowLogModal(true)}
+              className="bg-gray-900/90 backdrop-blur-sm rounded-2xl border border-gray-700 shadow-2xl overflow-hidden cursor-pointer hover:border-gray-500 transition-colors"
+            >
               <div className="px-4 py-3 bg-gray-800/50 border-b border-gray-700 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
@@ -330,7 +359,7 @@ export default function DashboardPage() {
                 </div>
                 <span className="text-xs text-gray-500">실시간</span>
               </div>
-              <div className="p-4 h-64 overflow-y-auto space-y-2 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+              <div className="p-4 h-64 overflow-y-auto space-y-2 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent pointer-events-none">
                 {logs.map((log) => (
                   <div key={log.id} className="flex items-start gap-2 text-xs" style={{ fontFamily: 'monospace' }}>
                     <span className="text-gray-500">[{log.time}]</span>
@@ -380,6 +409,125 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Warm Pool Detail Modal */}
+      {showPoolModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-6">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-blue-50 to-purple-50">
+              <div className="flex items-center gap-2">
+                <div className={`w-3 h-3 rounded-full ${systemStatus?.status === 'online' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+                <h3 className="text-lg font-bold text-gray-900">Warm Pool 상세 정보</h3>
+              </div>
+              <button
+                onClick={() => setShowPoolModal(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/50 transition-colors cursor-pointer"
+              >
+                <i className="ri-close-line text-xl text-gray-600"></i>
+              </button>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                  <div className="text-xs text-gray-500 mb-1">시스템 상태</div>
+                  <div className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                    {systemStatus?.status === 'online' ? 'Online' : 'Offline'}
+                    {systemStatus?.status === 'online' && <i className="ri-check-circle-fill text-green-500"></i>}
+                  </div>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                  <div className="text-xs text-gray-500 mb-1">Worker Uptime</div>
+                  <div className="text-lg font-bold text-gray-900">
+                    {systemStatus?.uptime_seconds ?
+                      `${Math.floor(systemStatus.uptime_seconds / 3600)}h ${Math.floor((systemStatus.uptime_seconds % 3600) / 60)}m`
+                      : '-'}
+                  </div>
+                </div>
+              </div>
+
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">언어별 Warm Container 현황</h4>
+              <div className="space-y-3">
+                {/* Python */}
+                <div className="bg-white border boundary-gray-200 p-4 rounded-xl shadow-sm">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <i className="ri-python-line text-xl text-blue-600"></i>
+                      <span className="font-medium">Python 3.11</span>
+                    </div>
+                    <span className="text-sm font-bold text-blue-600">{systemStatus?.pools?.python || 0} / 5</span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-2">
+                    <div
+                      className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${((systemStatus?.pools?.python || 0) / 5) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                {/* Node.js */}
+                <div className="bg-white border boundary-gray-200 p-4 rounded-xl shadow-sm">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <i className="ri-nodejs-line text-xl text-green-600"></i>
+                      <span className="font-medium">Node.js 20</span>
+                    </div>
+                    <span className="text-sm font-bold text-green-600">{systemStatus?.pools?.nodejs || 0} / 5</span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-2">
+                    <div
+                      className="bg-gradient-to-r from-green-500 to-teal-500 h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${((systemStatus?.pools?.nodejs || 0) / 5) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                {/* C++ */}
+                <div className="bg-white border boundary-gray-200 p-4 rounded-xl shadow-sm">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <i className="ri-code-s-slash-line text-xl text-pink-600"></i>
+                      <span className="font-medium">C++ 17</span>
+                    </div>
+                    <span className="text-sm font-bold text-pink-600">{systemStatus?.pools?.cpp || 0} / 5</span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-2">
+                    <div
+                      className="bg-gradient-to-r from-pink-500 to-rose-500 h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${((systemStatus?.pools?.cpp || 0) / 5) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                {/* Go */}
+                <div className="bg-white border boundary-gray-200 p-4 rounded-xl shadow-sm">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <i className="ri-terminal-box-line text-xl text-cyan-600"></i>
+                      <span className="font-medium">Go 1.21</span>
+                    </div>
+                    <span className="text-sm font-bold text-cyan-600">{systemStatus?.pools?.go || 0} / 5</span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-2">
+                    <div
+                      className="bg-gradient-to-r from-cyan-500 to-blue-500 h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${((systemStatus?.pools?.go || 0) / 5) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-100 flex items-start gap-3">
+                <i className="ri-information-fill text-blue-500 mt-0.5"></i>
+                <div className="text-xs text-blue-800">
+                  <p className="font-semibold mb-1">Warm Pool이란?</p>
+                  콜드 스타트를 방지하기 위해 미리 준비된 컨테이너입니다.
+                  Auto-Tuner가 트래픽에 따라 자동으로 풀 크기를 조절하여 비용과 성능을 최적화합니다.
+                </div>
               </div>
             </div>
           </div>
