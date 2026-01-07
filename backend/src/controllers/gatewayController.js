@@ -23,19 +23,15 @@ export const gatewayController = {
                 awsFunctions = [];
             }
 
-            // 3. Merge Strategy
-            const allFunctionIds = new Set([
-                ...awsFunctions.map(f => f.functionId),
-                ...Object.keys(localStats)
-            ]);
-
-            const merged = Array.from(allFunctionIds).map(fid => {
-                const awsFn = awsFunctions.find(f => f.functionId === fid) || {};
+            // 3. Only return functions that exist in AWS (not orphaned telemetry entries)
+            // This filters out deleted functions that still have local stats
+            const merged = awsFunctions.map(awsFn => {
+                const fid = awsFn.functionId;
                 const local = localStats[fid] || { calls: 0, status: 'UNKNOWN' };
 
                 return {
                     functionId: fid,
-                    name: awsFn.name || "Unknown (Offline)",
+                    name: awsFn.name || fid,
                     runtime: awsFn.runtime || "unknown",
                     status: awsFn.status || local.status,
                     createdAt: awsFn.createdAt || awsFn.uploadedAt || null,
@@ -194,7 +190,45 @@ export const gatewayController = {
     // GET /functions/:id/metrics
     async getMetrics(req, res) {
         try {
-            const metrics = await proxyService.getMetrics(req.params.id);
+            const functionId = req.params.id;
+
+            // 1. Get Prometheus-based metrics
+            const promMetrics = await proxyService.getPrometheusMetricsForFunction(functionId);
+
+            // 2. Get execution logs for additional context
+            let logs = [];
+            try {
+                logs = await proxyService.fetch(`/functions/${functionId}/logs`);
+                if (!Array.isArray(logs)) logs = [];
+            } catch (e) {
+                logger.warn('Failed to fetch logs for metrics', { functionId, error: e.message });
+            }
+
+            // 3. Calculate metrics from logs if Prometheus data is missing
+            const errorLogs = logs.filter(l => l.status === 'ERROR' || l.status === 'TIMEOUT').length;
+            const successLogs = logs.filter(l => l.status === 'SUCCESS').length;
+            const durations = logs.filter(l => l.duration > 0).map(l => l.duration);
+            const avgDurationFromLogs = durations.length > 0
+                ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
+                : 0;
+
+            // 4. Merge: Prometheus takes priority, fallback to log-based calculation
+            const metrics = {
+                invocations: promMetrics.invocations || (successLogs + errorLogs),
+                avgDuration: promMetrics.avgDuration || avgDurationFromLogs,
+                errors: promMetrics.errors || errorLogs,
+                successRate: promMetrics.successRate || (successLogs + errorLogs > 0
+                    ? Math.round((successLogs / (successLogs + errorLogs)) * 10000) / 100
+                    : 100),
+                coldStarts: 0, // Not available in current implementation
+                recentExecutions: logs.slice(0, 10).map(l => ({
+                    timestamp: l.timestamp,
+                    duration: l.duration || 0,
+                    status: l.status,
+                    memory: l.memory || 0
+                }))
+            };
+
             res.json(metrics);
         } catch (error) {
             logger.error('Get Metrics Error', error);
@@ -205,23 +239,35 @@ export const gatewayController = {
     // GET /dashboard/stats
     async getDashboardStats(req, res) {
         try {
-            // Aggregate stats from functions and telemetry
+            // Aggregate stats from functions, telemetry, and Prometheus
             const functions = await proxyService.fetch('/functions');
             const localStats = await telemetryService.getAll();
+
+            // Get Prometheus metrics for real-time accuracy
+            let promMetrics = { totalInvocations: 0, avgDuration: 0, errorCount: 0, successRate: 100 };
+            try {
+                promMetrics = await proxyService.getAllPrometheusMetrics();
+            } catch (e) {
+                logger.warn('Prometheus metrics unavailable, using local telemetry');
+            }
+
+            // Use Prometheus data if available, fallback to local telemetry
+            const localExecCount = Object.values(localStats).reduce((sum, s) => sum + (s.calls || 0), 0);
+            const localErrorCount = Object.values(localStats).reduce((sum, s) => sum + (s.errors || 0), 0);
 
             const stats = {
                 totalFunctions: Array.isArray(functions) ? functions.length : 0,
                 activeFunctions: Array.isArray(functions)
                     ? functions.filter(f => f.status === 'READY' || f.status === 'active').length
                     : 0,
-                totalExecutions: Object.values(localStats).reduce((sum, s) => sum + (s.calls || 0), 0),
-                totalErrors: Object.values(localStats).reduce((sum, s) => sum + (s.errors || 0), 0),
-                successRate: 0
+                totalExecutions: promMetrics.totalInvocations || localExecCount,
+                totalErrors: promMetrics.errorCount || localErrorCount,
+                avgResponseTime: promMetrics.avgDuration || 0,
+                successRate: promMetrics.successRate || (localExecCount > 0
+                    ? Math.round(((localExecCount - localErrorCount) / localExecCount) * 10000) / 100
+                    : 100),
+                byFunction: promMetrics.byFunction || []
             };
-
-            if (stats.totalExecutions > 0) {
-                stats.successRate = ((stats.totalExecutions - stats.totalErrors) / stats.totalExecutions * 100).toFixed(2);
-            }
 
             res.json(stats);
         } catch (error) {
