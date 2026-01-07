@@ -73,28 +73,33 @@ class ApiClient {
     }
   }
 
-  async get<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'GET' });
+  async get<T>(endpoint: string, options?: RequestInit): Promise<T> {
+    return this.request<T>(endpoint, { ...options, method: 'GET' });
   }
 
-  async post<T>(endpoint: string, data?: unknown): Promise<T> {
+  async post<T>(endpoint: string, data?: unknown, options?: RequestInit): Promise<T> {
     const isFormData = data instanceof FormData;
     return this.request<T>(endpoint, {
       method: 'POST',
       body: isFormData ? (data as BodyInit) : (data ? JSON.stringify(data) : undefined),
+      ...options,
+      headers: {
+        ...(options?.headers as Record<string, string>),
+      },
     });
   }
 
-  async put<T>(endpoint: string, data?: unknown): Promise<T> {
+  async put<T>(endpoint: string, data?: unknown, options?: RequestInit): Promise<T> {
     const isFormData = data instanceof FormData;
     return this.request<T>(endpoint, {
+      ...options,
       method: 'PUT',
       body: isFormData ? (data as BodyInit) : (data ? JSON.stringify(data) : undefined),
     });
   }
 
-  async delete<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'DELETE' });
+  async delete<T>(endpoint: string, options?: RequestInit): Promise<T> {
+    return this.request<T>(endpoint, { ...options, method: 'DELETE' });
   }
 }
 

@@ -22,6 +22,7 @@ export default function FunctionDetailPage() {
   const [isTestRunning, setIsTestRunning] = useState(false);
   const [showOptimizationToast, setShowOptimizationToast] = useState(false);
   const [activeTestTab, setActiveTestTab] = useState<'input' | 'result' | 'advanced'>('input');
+  const [isAsyncMode, setIsAsyncMode] = useState(false);
 
   const [functionItem, setFunctionItem] = useState<any>(null);
   const [metrics, setMetrics] = useState<any>(null);
@@ -209,7 +210,24 @@ export default function FunctionDetailPage() {
       }
 
       const startTime = Date.now();
-      const result: any = await functionApi.invokeFunction(id, inputPayload);
+      const options = isAsyncMode ? { headers: { 'x-async': 'true' } } : {};
+      let result: any = await functionApi.invokeFunction(id, inputPayload, options);
+
+      // Async Polling Logic
+      if (isAsyncMode && result?.status === 'ACCEPTED' && result?.jobId) {
+        const jobId = result.jobId;
+        // Poll every 1s
+        while (true) {
+          await new Promise(r => setTimeout(r, 1000));
+          const statusRes: any = await functionApi.getJobStatus(jobId);
+
+          if (statusRes.status !== 'pending') {
+            result = statusRes;
+            break;
+          }
+        }
+      }
+
       const executionTime = Date.now() - startTime;
 
       // Unifying format (Controller returns { statusCode, body } usually)
@@ -1132,9 +1150,27 @@ export default function FunctionDetailPage() {
               {/* Input Tab */}
               {activeTestTab === 'input' && (
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-3">
-                    테스트 입력 데이터 (JSON)
-                  </label>
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="block text-sm font-semibold text-gray-700">
+                      테스트 입력 데이터 (JSON)
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <span className={`text-xs font-medium ${isAsyncMode ? 'text-purple-600' : 'text-gray-500'}`}>
+                        <i className="ri-timer-flash-line mr-1"></i>
+                        비동기 실행 (Async)
+                      </span>
+                      <button
+                        onClick={() => setIsAsyncMode(!isAsyncMode)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 cursor-pointer ${isAsyncMode ? 'bg-purple-600' : 'bg-gray-200'
+                          }`}
+                      >
+                        <span
+                          className={`${isAsyncMode ? 'translate-x-6' : 'translate-x-1'
+                            } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                        />
+                      </button>
+                    </div>
+                  </div>
                   <textarea
                     value={testInput}
                     onChange={(e) => setTestInput(e.target.value)}

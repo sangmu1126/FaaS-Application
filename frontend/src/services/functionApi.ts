@@ -61,10 +61,15 @@ export const functionApi = {
   },
 
   // Invoke function
-  invokeFunction: async (id: string, payload?: unknown): Promise<unknown> => {
+  invokeFunction: async (id: string, payload?: unknown, options?: RequestInit): Promise<unknown> => {
     return apiClient.post('/run', {
       functionId: id,
       inputData: payload
-    });
+    }, options);
+  },
+
+  // Get Async Job Status
+  getJobStatus: async (jobId: string): Promise<unknown> => {
+    return apiClient.get(`/status/${jobId}`);
   },
 };
