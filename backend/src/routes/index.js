@@ -18,6 +18,7 @@ router.get('/dashboard/stats', gatewayController.getDashboardStats);
 // Actions
 router.post('/upload', upload.single('file'), gatewayController.upload);
 router.post('/run', gatewayController.run);
+router.get('/status/:jobId', gatewayController.getJobStatus);
 
 // Logs
 router.get('/logs', gatewayController.getLogs);

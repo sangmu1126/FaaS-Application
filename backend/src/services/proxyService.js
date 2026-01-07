@@ -61,17 +61,18 @@ export const proxyService = {
     },
 
     // Proxy Execution
-    async runFunction(functionId, inputData) {
+    async runFunction(functionId, inputData, options = {}) {
         const targetUrl = `${config.awsAlbUrl}/run`;
 
-        logger.info(`Proxying RUN to ${targetUrl}`, { functionId });
+        logger.info(`Proxying RUN to ${targetUrl}`, { functionId, headers: options.headers });
 
         try {
             const { statusCode, body } = await request(targetUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-api-key': config.infraApiKey
+                    'x-api-key': config.infraApiKey,
+                    ...(options.headers || {})
                 },
                 body: JSON.stringify({ functionId, inputData }),
                 bodyTimeout: 60000,  // 60 seconds for function execution

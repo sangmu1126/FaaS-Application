@@ -103,7 +103,14 @@ export const gatewayController = {
             await telemetryService.recordRun(functionId);
 
             // 3. Execute on AWS
-            const result = await proxyService.runFunction(functionId, inputData);
+            const options = {
+                headers: {}
+            };
+            if (req.headers['x-async']) {
+                options.headers['x-async'] = req.headers['x-async'];
+            }
+
+            const result = await proxyService.runFunction(functionId, inputData, options);
 
             // 4. Update Stats & Notify Result
             const isSuccess = !result.error && result.status !== 'ERROR';
@@ -243,6 +250,17 @@ export const gatewayController = {
                 error: error.message,
                 timestamp: new Date().toISOString()
             });
+        }
+    },
+
+    // GET /status/:jobId
+    async getJobStatus(req, res) {
+        try {
+            const result = await proxyService.fetch(`/status/${req.params.jobId}`);
+            res.json(result);
+        } catch (error) {
+            logger.error('Get Job Status Error', error);
+            res.status(500).json({ error: error.message });
         }
     }
 };
