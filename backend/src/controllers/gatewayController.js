@@ -116,17 +116,25 @@ export const gatewayController = {
             const isSuccess = !result.error && result.status !== 'ERROR';
             await telemetryService.recordResult(functionId, isSuccess);
 
-            // Async notification to not block response too long
-            // (Though runFunction waits for execution, so we have the result now)
+            // Async notification
             slackService.notifyResult(threadTs, result);
 
             res.json(result);
-
         } catch (error) {
-            logger.error('Run Error', error);
+            logger.error('Run Error Details:', {
+                message: error.message,
+                stack: error.stack,
+                response: error.response ? {
+                    status: error.response.status,
+                    data: error.response.data
+                } : 'No response'
+            });
             // Even if network fails, record error
             await telemetryService.recordResult(functionId, false);
-            res.status(500).json({ error: error.message });
+            res.status(500).json({
+                error: error.message,
+                details: error.response?.data || 'Check backend logs'
+            });
         }
     },
 
@@ -260,6 +268,18 @@ export const gatewayController = {
             res.json(result);
         } catch (error) {
             logger.error('Get Job Status Error', error);
+            res.status(500).json({ error: error.message });
+        }
+    },
+
+    // GET /metrics/prometheus
+    async getPrometheusMetrics(req, res) {
+        try {
+            const result = await proxyService.fetchRaw('/metrics');
+            res.set('Content-Type', 'text/plain');
+            res.send(result);
+        } catch (error) {
+            logger.error('Get Prometheus Metrics Error', error);
             res.status(500).json({ error: error.message });
         }
     }

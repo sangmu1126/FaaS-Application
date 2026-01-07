@@ -85,6 +85,7 @@ export const proxyService = {
             if (statusCode >= 400) {
                 result.error = result.error || "Upstream Error";
                 result.status = "ERROR";
+                result.statusCode = statusCode; // Propagate status code
             }
 
             return result;
@@ -108,6 +109,15 @@ export const proxyService = {
         } catch (e) {
             return { error: "Failed to parse JSON from upstream" };
         }
+    },
+
+    // Fetch Raw Text (for Prometheus metrics)
+    async fetchRaw(path) {
+        const targetUrl = `${config.awsAlbUrl}${path}`;
+        const { body } = await request(targetUrl, {
+            headers: { 'x-api-key': config.infraApiKey }
+        });
+        return await body.text();
     },
 
     // DELETE Function

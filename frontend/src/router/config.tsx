@@ -6,6 +6,7 @@ import Deploy from "../pages/deploy/page";
 import FunctionDetail from "../pages/function-detail/page";
 import Logs from "../pages/logs/page";
 import Settings from "../pages/settings/page";
+import Metrics from "../pages/metrics/page";
 import Login from "../pages/auth/login";
 import Register from "../pages/auth/register";
 import ProtectedRoute from "../components/common/ProtectedRoute";
@@ -60,6 +61,14 @@ const routes: RouteObject[] = [
     element: (
       <ProtectedRoute>
         <Settings />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/metrics",
+    element: (
+      <ProtectedRoute>
+        <Metrics />
       </ProtectedRoute>
     ),
   },

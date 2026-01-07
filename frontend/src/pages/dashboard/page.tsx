@@ -31,6 +31,7 @@ export default function DashboardPage() {
 
   const [functions, setFunctions] = useState<FunctionItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Fetch Real Data
   useEffect(() => {
@@ -158,7 +159,7 @@ export default function DashboardPage() {
       />
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
+        <Header onSearch={setSearchQuery} />
 
         <main className="flex-1 overflow-y-auto relative">
           <div className="max-w-7xl mx-auto px-6 py-8">
@@ -264,81 +265,83 @@ export default function DashboardPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {functions.map((func) => (
-                        <tr key={func.id} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-6 py-4">
-                            <Link
-                              to={`/function/${func.id}`}
-                              className="flex items-center gap-3 cursor-pointer group"
-                            >
-                              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-                                <i className="ri-function-line text-white"></i>
-                              </div>
-                              <div>
-                                <div className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
-                                  {func.name}
+                      {functions
+                        .filter(func => func.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                        .map((func) => (
+                          <tr key={func.id} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-6 py-4">
+                              <Link
+                                to={`/function/${func.id}`}
+                                className="flex items-center gap-3 cursor-pointer group"
+                              >
+                                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                                  <i className="ri-function-line text-white"></i>
                                 </div>
-                                <div className="text-xs text-gray-500">{func.id.substring(0, 8)}...</div>
+                                <div>
+                                  <div className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                                    {func.name}
+                                  </div>
+                                  <div className="text-xs text-gray-500">{func.id.substring(0, 8)}...</div>
+                                </div>
+                              </Link>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(func.status)}`}>
+                                {func.status === 'deploying' && (
+                                  <i className="ri-loader-4-line animate-spin"></i>
+                                )}
+                                {getStatusText(func.status)}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-2">
+                                <i className={`${getLanguageIcon(func.language)} text-lg text-gray-600`}></i>
+                                <span className="text-sm text-gray-700">{func.language}</span>
                               </div>
-                            </Link>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(func.status)}`}>
-                              {func.status === 'deploying' && (
-                                <i className="ri-loader-4-line animate-spin"></i>
-                              )}
-                              {getStatusText(func.status)}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-2">
-                              <i className={`${getLanguageIcon(func.language)} text-lg text-gray-600`}></i>
-                              <span className="text-sm text-gray-700">{func.language}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className="text-sm text-gray-700">{func.memory}MB</span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className="text-sm text-gray-600">{func.lastDeployed}</span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center justify-end gap-2">
-                              <Link
-                                to={`/function/${func.id}`}
-                                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-green-50 text-gray-600 hover:text-green-600 transition-colors cursor-pointer"
-                                title="실행"
-                              >
-                                <i className="ri-play-circle-line text-xl"></i>
-                              </Link>
-                              <Link
-                                to={`/function/${func.id}`}
-                                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-purple-50 text-gray-600 hover:text-purple-600 transition-colors cursor-pointer"
-                                title="설정"
-                              >
-                                <i className="ri-settings-3-line text-xl"></i>
-                              </Link>
-                              <button
-                                onClick={async (e) => {
-                                  e.preventDefault();
-                                  if (window.confirm('정말 삭제하시겠습니까?')) {
-                                    try {
-                                      await functionApi.deleteFunction(func.id);
-                                      setFunctions(prev => prev.filter(f => f.id !== func.id));
-                                    } catch (err) {
-                                      alert('삭제 실패');
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="text-sm text-gray-700">{func.memory}MB</span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="text-sm text-gray-600">{func.lastDeployed}</span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center justify-end gap-2">
+                                <Link
+                                  to={`/function/${func.id}`}
+                                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-green-50 text-gray-600 hover:text-green-600 transition-colors cursor-pointer"
+                                  title="실행"
+                                >
+                                  <i className="ri-play-circle-line text-xl"></i>
+                                </Link>
+                                <Link
+                                  to={`/function/${func.id}`}
+                                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-purple-50 text-gray-600 hover:text-purple-600 transition-colors cursor-pointer"
+                                  title="설정"
+                                >
+                                  <i className="ri-settings-3-line text-xl"></i>
+                                </Link>
+                                <button
+                                  onClick={async (e) => {
+                                    e.preventDefault();
+                                    if (window.confirm('정말 삭제하시겠습니까?')) {
+                                      try {
+                                        await functionApi.deleteFunction(func.id);
+                                        setFunctions(prev => prev.filter(f => f.id !== func.id));
+                                      } catch (err) {
+                                        alert('삭제 실패');
+                                      }
                                     }
-                                  }
-                                }}
-                                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-gray-600 hover:text-red-600 transition-colors cursor-pointer"
-                                title="삭제"
-                              >
-                                <i className="ri-delete-bin-line text-xl"></i>
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                                  }}
+                                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-gray-600 hover:text-red-600 transition-colors cursor-pointer"
+                                  title="삭제"
+                                >
+                                  <i className="ri-delete-bin-line text-xl"></i>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
                     </tbody>
                   </table>
                 </div>

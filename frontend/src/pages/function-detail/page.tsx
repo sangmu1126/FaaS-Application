@@ -5,6 +5,7 @@ import Header from '../dashboard/components/Header';
 
 import { functionApi } from '../../services/functionApi';
 import { logApi } from '../../services/logApi';
+import { useAlertStore } from '../../store/alertStore';
 
 export default function FunctionDetailPage() {
   const { id } = useParams();
@@ -46,56 +47,27 @@ export default function FunctionDetailPage() {
         });
 
         // Metrics not available in this version
-        const metricsData = { executions: 0, avgResponseTime: 0, coldStarts: 0, errors: 0 };
-
         const [fnData, logsData] = await Promise.all([fnRequest, logsRequest]);
 
-        // Mock Data Fallback
-        const mockFunctionData = {
-          id: id || 'mock-id',
-          name: id || 'image-processor',
-          language: 'python',
-          runtime: 'python:3.9-slim',
-          status: 'active',
-          memory: 512,
-          timeout: 30,
-          createdAt: new Date().toISOString(),
-          endpoint: `https://api.faas.io/${id || 'image-processor'}`,
-          description: '이미지 리사이징 및 포맷 변환을 처리하는 함수입니다.'
-        };
+        // Calculate real metrics
+        const totalExecutions = fnData?.invocations || 0;
+        const validLogs = logsData || [];
+        const errorLogs = validLogs.filter((l: any) => l.level === 'error').length;
+        const recentErrorRate = validLogs.length > 0 ? (errorLogs / validLogs.length) : 0;
 
-        const mockMetricsData = {
-          executions: 1250,
-          avgResponseTime: 45,
-          coldStarts: 12,
-          errors: 5
-        };
-
-        const mockLogsData = Array.from({ length: 15 }, (_, i) => ({
-          id: `log-${Date.now()}-${i}`,
-          timestamp: new Date(Date.now() - i * 60000).toISOString(),
-          duration: Math.floor(Math.random() * 200) + 20,
-          status: Math.random() > 0.1 ? 'SUCCESS' : 'ERROR',
-          memory: 128 + Math.floor(Math.random() * 50),
-          level: Math.random() > 0.1 ? 'info' : 'error',
-          message: Math.random() > 0.1 ? 'Function executed successfully' : 'Timeout waiting for upstream'
-        }));
-
-        // Transform metrics for UI
-        const rawMetrics = metricsData || mockMetricsData;
         const uiMetrics = {
-          invocations: rawMetrics.executions || 0,
-          avgDuration: rawMetrics.avgResponseTime || 0,
-          coldStarts: rawMetrics.coldStarts || 0,
-          errors: rawMetrics.errors || 0,
-          successRate: rawMetrics.executions > 0
-            ? ((rawMetrics.executions - rawMetrics.errors) / rawMetrics.executions * 100).toFixed(2)
-            : 100
+          invocations: totalExecutions,
+          avgDuration: 0,
+          coldStarts: 0,
+          successRate: ((1 - recentErrorRate) * 100).toFixed(2),
+          successCount: Math.round(totalExecutions * (1 - recentErrorRate)),
+          errorCount: Math.round(totalExecutions * recentErrorRate),
+          memory: fnData?.memory || 128
         };
 
         setFunctionItem(fnData);
         setMetrics(uiMetrics);
-        setLogs((logsData && logsData.length > 0) ? logsData : []);
+        setLogs(validLogs);
       } catch (error) {
         console.error('Failed to load function details:', error);
       } finally {
@@ -253,6 +225,13 @@ export default function FunctionDetailPage() {
         estimatedSavings: result.estimatedSavings
       });
 
+      // Trigger success alert
+      useAlertStore.getState().addAlert({
+        type: 'success',
+        title: '함수 실행 완료',
+        message: `${functionItem?.name || 'Function'} 실행 성공 (${executionTime}ms)`
+      });
+
     } catch (error: any) {
       console.error("Test Run Failed", error);
       setTestResult({
@@ -263,6 +242,13 @@ export default function FunctionDetailPage() {
         message: error.message || 'Unknown Error',
         output: JSON.stringify({ error: error.message }, null, 2),
         executionTime: 0
+      });
+
+      // Trigger error alert
+      useAlertStore.getState().addAlert({
+        type: 'error',
+        title: '함수 실행 실패',
+        message: error.message || '알 수 없는 오류가 발생했습니다'
       });
     }
 
@@ -657,41 +643,33 @@ export default function FunctionDetailPage() {
                   </div>
                 </div>
 
-                {/* Performance Metrics */}
-                <div className="grid md:grid-cols-2 gap-6">
+                {/* Charts Row */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Invocations Chart */}
                   <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-gray-200 p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-bold text-gray-900">실행 횟수</h3>
                       <i className="ri-bar-chart-line text-2xl text-blue-600"></i>
                     </div>
-                    <div className="h-64 flex items-end justify-between gap-2">
-                      {[120, 145, 98, 167, 189, 156, 201, 178, 145, 167, 189, 201].map((value, idx) => (
-                        <div key={idx} className="flex-1 flex flex-col items-center gap-2">
-                          <div
-                            className="w-full bg-gradient-to-t from-blue-400 to-indigo-400 rounded-t-lg transition-all hover:opacity-80"
-                            style={{ height: `${(value / 201) * 100}%` }}
-                          ></div>
-                          <span className="text-xs text-gray-500">{idx + 1}h</span>
-                        </div>
-                      ))}
+                    <div className="h-64 flex items-center justify-center text-gray-400 text-sm bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+                      <div className="text-center">
+                        <i className="ri-bar-chart-box-line text-3xl mb-2 block opacity-50"></i>
+                        시간별 데이터 수집 중...
+                      </div>
                     </div>
                   </div>
 
+                  {/* Duration Chart */}
                   <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-gray-200 p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-bold text-gray-900">응답 시간</h3>
-                      <i className="ri-time-line text-2xl text-blue-600"></i>
+                      <i className="ri-time-line text-2xl text-green-600"></i>
                     </div>
-                    <div className="h-64 flex items-end justify-between gap-2">
-                      {[42, 38, 51, 45, 39, 47, 43, 41, 46, 44, 40, 45].map((value, idx) => (
-                        <div key={idx} className="flex-1 flex flex-col items-center gap-2">
-                          <div
-                            className="w-full bg-gradient-to-t from-blue-400 to-cyan-400 rounded-t-lg transition-all hover:opacity-80"
-                            style={{ height: `${(value / 51) * 100}%` }}
-                          ></div>
-                          <span className="text-xs text-gray-500">{idx + 1}h</span>
-                        </div>
-                      ))}
+                    <div className="h-64 flex items-center justify-center text-gray-400 text-sm bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+                      <div className="text-center">
+                        <i className="ri-timer-flash-line text-3xl mb-2 block opacity-50"></i>
+                        시간별 데이터 수집 중...
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -705,17 +683,17 @@ export default function FunctionDetailPage() {
                       </div>
                       <div>
                         <div className="text-sm text-gray-600">성공률</div>
-                        <div className="text-2xl font-bold text-gray-900">99.76%</div>
+                        <div className="text-2xl font-bold text-gray-900">{metrics?.successRate || '100.00'}%</div>
                       </div>
                     </div>
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">성공</span>
-                        <span className="font-medium text-green-600">1,244</span>
+                        <span className="font-medium text-green-600">{metrics?.successCount?.toLocaleString() || 0}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">실패</span>
-                        <span className="font-medium text-red-600">3</span>
+                        <span className="font-medium text-red-600">{metrics?.errorCount?.toLocaleString() || 0}</span>
                       </div>
                     </div>
                   </div>
@@ -727,17 +705,17 @@ export default function FunctionDetailPage() {
                       </div>
                       <div>
                         <div className="text-sm text-gray-600">평균 메모리</div>
-                        <div className="text-2xl font-bold text-gray-900">492 MB</div>
+                        <div className="text-2xl font-bold text-gray-900">{metrics?.memory || 128} MB</div>
                       </div>
                     </div>
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">최대</span>
-                        <span className="font-medium text-gray-900">501 MB</span>
+                        <span className="font-medium text-gray-900">{metrics?.memory || 128} MB</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">최소</span>
-                        <span className="font-medium text-gray-900">485 MB</span>
+                        <span className="font-medium text-gray-900">{metrics?.memory || 128} MB</span>
                       </div>
                     </div>
                   </div>
@@ -770,20 +748,22 @@ export default function FunctionDetailPage() {
                   <h3 className="text-lg font-bold text-gray-900 mb-4">비용 분석</h3>
                   <div className="grid md:grid-cols-4 gap-4">
                     <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-gray-50 rounded-xl border border-gray-200">
-                      <div className="text-sm text-gray-600 mb-1">이번 달</div>
-                      <div className="text-2xl font-bold text-gray-900">$24.50</div>
+                      <div className="text-sm text-gray-600 mb-1">이번 달 (추정)</div>
+                      <div className="text-2xl font-bold text-gray-900">
+                        ${((metrics?.invocations || 0) * 0.00001667).toFixed(4)}
+                      </div>
                     </div>
                     <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-gray-200">
                       <div className="text-sm text-gray-600 mb-1">지난 달</div>
-                      <div className="text-2xl font-bold text-gray-900">$28.90</div>
+                      <div className="text-2xl font-bold text-gray-900">$0.00</div>
                     </div>
                     <div className="text-center p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border border-green-100">
                       <div className="text-sm text-gray-600 mb-1">절감액</div>
-                      <div className="text-2xl font-bold text-green-600">$4.40</div>
+                      <div className="text-2xl font-bold text-green-600">$0.00</div>
                     </div>
                     <div className="text-center p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border border-green-100">
                       <div className="text-sm text-gray-600 mb-1">절감률</div>
-                      <div className="text-2xl font-bold text-green-600">15.2%</div>
+                      <div className="text-2xl font-bold text-green-600">0.0%</div>
                     </div>
                   </div>
                 </div>

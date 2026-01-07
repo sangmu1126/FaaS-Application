@@ -79,13 +79,14 @@ class ApiClient {
 
   async post<T>(endpoint: string, data?: unknown, options?: RequestInit): Promise<T> {
     const isFormData = data instanceof FormData;
+    const mergedHeaders = {
+      ...(options?.headers as Record<string, string>),
+    };
     return this.request<T>(endpoint, {
+      ...options,
       method: 'POST',
       body: isFormData ? (data as BodyInit) : (data ? JSON.stringify(data) : undefined),
-      ...options,
-      headers: {
-        ...(options?.headers as Record<string, string>),
-      },
+      headers: mergedHeaders,
     });
   }
 

@@ -27,5 +27,6 @@ router.get('/logs', gatewayController.getLogs);
 router.get('/health', (req, res) => res.json({ status: 'OK', role: 'Smart Gateway' }));
 router.get('/system/status', gatewayController.getSystemStatus);
 router.get('/worker/health', gatewayController.getWorkerHealth);
+router.get('/metrics/prometheus', gatewayController.getPrometheusMetrics);
 
 export default router;
