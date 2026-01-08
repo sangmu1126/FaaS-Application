@@ -147,7 +147,7 @@ export const gatewayController = {
     // GET /functions/:id/logs
     async getFunctionLogs(req, res) {
         try {
-            const logs = await proxyService.fetch(`/functions/${req.params.id}/logs`);
+            const logs = await proxyService.fetch(`/api/functions/${req.params.id}/logs`);
             res.json(logs);
         } catch (error) {
             res.status(500).json({ error: error.message });
@@ -198,7 +198,7 @@ export const gatewayController = {
             // 2. Get execution logs for additional context
             let logs = [];
             try {
-                logs = await proxyService.fetch(`/functions/${functionId}/logs`);
+                logs = await proxyService.fetch(`/api/functions/${functionId}/logs`);
                 if (!Array.isArray(logs)) logs = [];
             } catch (e) {
                 logger.warn('Failed to fetch logs for metrics', { functionId, error: e.message });
@@ -287,17 +287,20 @@ export const gatewayController = {
             };
 
             // Try to fetch worker health
-            let worker = { status: 'unknown' };
+            let worker = { status: 'unknown', pools: {} };
             try {
                 const workerHealth = await proxyService.fetchWorkerHealth();
                 worker = workerHealth;
             } catch (e) {
-                worker = { status: 'offline', error: e.message };
+                worker = { status: 'offline', error: e.message, pools: {} };
             }
 
             res.json({
-                status: gateway.status,
-                uptime_seconds: gateway.uptime,
+                status: worker.status === 'online' ? 'online' : gateway.status,
+                uptime_seconds: worker.uptime_seconds || 0,
+                pools: worker.pools || {},  // Root-level pools for Sidebar
+                active_workers: worker.active_workers || 0,
+                active_jobs: worker.active_jobs || 0,
                 gateway,
                 worker
             });
