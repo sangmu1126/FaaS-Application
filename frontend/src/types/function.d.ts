@@ -4,22 +4,28 @@ export interface FunctionItem {
   language: 'python' | 'nodejs' | 'cpp' | 'go';
   runtime: string;
   status: 'active' | 'inactive' | 'error';
-  memory: number;
+  memory: number; // Used in DeploymentConfig
+  memoryMb?: number; // Used in some API responses
   timeout: number;
   executions: number;
+  invocations?: number; // Alias
   avgResponseTime: number;
   lastExecuted: string;
   createdAt: string;
   endpoint: string;
+  uploadedAt?: string;
 }
 
 export interface FunctionMetrics {
   executions: number;
+  invocations?: number;
   avgResponseTime: number;
+  avgDuration?: number;
   coldStarts: number;
   errors: number;
   successRate: number;
   totalCost: number;
+  recentExecutions?: any[];
 }
 
 export interface LogEntry {
