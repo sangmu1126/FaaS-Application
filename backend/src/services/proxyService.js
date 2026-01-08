@@ -193,16 +193,17 @@ export const proxyService = {
         // Now we fetch status from Controller which aggregates worker heartbeats
         const status = await this.fetch('/system/status');
 
-        // Transform to expected format if needed, or just return
-        if (status && status.worker) {
+        // Controller returns: { status, worker_count, pools, uptime_seconds, active_jobs }
+        if (status && status.status === 'online') {
             return {
-                status: status.worker.count > 0 ? 'online' : 'degraded',
-                uptime_seconds: status.uptime,
-                active_workers: status.worker.count,
-                pools: status.worker.pools
+                status: status.worker_count > 0 ? 'online' : 'degraded',
+                uptime_seconds: status.uptime_seconds || 0,
+                active_workers: status.worker_count || 0,
+                active_jobs: status.active_jobs || 0,
+                pools: status.pools || {}
             };
         }
-        return { status: 'unknown' };
+        return { status: 'unknown', pools: {} };
     },
 
     // Parse Prometheus text format and extract metrics
