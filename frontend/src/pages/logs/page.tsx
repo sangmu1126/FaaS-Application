@@ -82,7 +82,7 @@ export default function LogsPage() {
         .filter((l: any) => {
           // Filter out irrelevant system logs
           const msg = l.msg || l.message;
-          if (msg.includes('Redis Connected') || msg.includes('Subscribed') || msg.includes('Started')) return false;
+          if (msg.includes('Redis Connected') || msg.includes('Subscribed') || msg.includes('Started') || msg.includes('Heartbeat')) return false;
           return true;
         })
         .map((l: any) => {
