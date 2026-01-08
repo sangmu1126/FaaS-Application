@@ -35,101 +35,101 @@ export default function FunctionDetailPage() {
   const [systemStatus, setSystemStatus] = useState<any>(null);
   const [timeSeriesData, setTimeSeriesData] = useState<any[]>([]);
 
-  useEffect(() => {
-    async function loadData() {
-      if (!id) return;
-      try {
-        setLoading(true);
-        // Load data in parallel but handle failures individually to avoid blank page
-        const fnRequest = functionApi.getFunction(id).catch(err => {
-          console.error('Failed to load function:', err);
+  const loadData = async () => {
+    if (!id) return;
+    try {
+      setLoading(true);
+      // Load data in parallel but handle failures individually to avoid blank page
+      const fnRequest = functionApi.getFunction(id).catch(err => {
+        console.error('Failed to load function:', err);
+        return null;
+      });
+
+      const logsRequest = logApi.getFunctionLogs(id).catch(err => {
+        console.warn('Failed to load logs:', err);
+        return [];
+      });
+
+      // Fetch real metrics from backend API
+      const metricsRequest = functionApi.getMetrics(id).catch(err => {
+        console.warn('Failed to load metrics:', err);
+        return null;
+      });
+
+      // Fetch system status for Warm Pool data
+      const systemRequest = fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'}/system/status`)
+        .then(res => res.json())
+        .catch(err => {
+          console.warn('Failed to load system status:', err);
           return null;
         });
 
-        const logsRequest = logApi.getFunctionLogs(id).catch(err => {
-          console.warn('Failed to load logs:', err);
-          return [];
+      const [fnData, logsData, metricsData, sysData] = await Promise.all([fnRequest, logsRequest, metricsRequest, systemRequest]);
+
+      // Use backend metrics if available, else calculate from logs
+      const validLogs = logsData || [];
+      const errorLogs = validLogs.filter((l: any) => l.level === 'error').length;
+      const successLogs = validLogs.length - errorLogs;
+
+      const uiMetrics = {
+        invocations: metricsData?.invocations ?? fnData?.invocations ?? 0,
+        avgDuration: metricsData?.avgDuration ?? 0,
+        coldStarts: metricsData?.coldStarts ?? 0,
+        errors: metricsData?.errors ?? errorLogs,
+        successRate: metricsData?.successRate ?? (validLogs.length > 0
+          ? ((successLogs / validLogs.length) * 100).toFixed(2)
+          : '100.00'),
+        successCount: metricsData?.invocations
+          ? Math.round((metricsData.invocations || 0) - (metricsData.errors || 0))
+          : successLogs,
+        errorCount: metricsData?.errors ?? errorLogs,
+        memory: fnData?.memory || fnData?.memoryMb || 128,
+        // Include recent executions for time-series
+        recentExecutions: metricsData?.recentExecutions || []
+      };
+
+      // Generate time-series data from recent executions
+      const executions = metricsData?.recentExecutions || [];
+      if (executions.length > 0) {
+        // Group by minute and create time-series
+        const timeMap = new Map<string, { count: number; totalDuration: number }>();
+
+        executions.forEach((exec: any) => {
+          if (!exec.timestamp) return;
+          const date = new Date(exec.timestamp);
+          const timeKey = date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+
+          if (!timeMap.has(timeKey)) {
+            timeMap.set(timeKey, { count: 0, totalDuration: 0 });
+          }
+          const entry = timeMap.get(timeKey)!;
+          entry.count += 1;
+          entry.totalDuration += exec.duration || 0;
         });
 
-        // Fetch real metrics from backend API
-        const metricsRequest = functionApi.getMetrics(id).catch(err => {
-          console.warn('Failed to load metrics:', err);
-          return null;
-        });
+        const tsData = Array.from(timeMap.entries())
+          .map(([time, data]) => ({
+            time,
+            invocations: data.count,
+            avgDuration: data.count > 0 ? Math.round(data.totalDuration / data.count) : 0
+          }))
+          .sort((a, b) => a.time.localeCompare(b.time));
 
-        // Fetch system status for Warm Pool data
-        const systemRequest = fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'}/system/status`)
-          .then(res => res.json())
-          .catch(err => {
-            console.warn('Failed to load system status:', err);
-            return null;
-          });
-
-        const [fnData, logsData, metricsData, sysData] = await Promise.all([fnRequest, logsRequest, metricsRequest, systemRequest]);
-
-        // Use backend metrics if available, else calculate from logs
-        const validLogs = logsData || [];
-        const errorLogs = validLogs.filter((l: any) => l.level === 'error').length;
-        const successLogs = validLogs.length - errorLogs;
-
-        const uiMetrics = {
-          invocations: metricsData?.invocations ?? fnData?.invocations ?? 0,
-          avgDuration: metricsData?.avgDuration ?? 0,
-          coldStarts: metricsData?.coldStarts ?? 0,
-          errors: metricsData?.errors ?? errorLogs,
-          successRate: metricsData?.successRate ?? (validLogs.length > 0
-            ? ((successLogs / validLogs.length) * 100).toFixed(2)
-            : '100.00'),
-          successCount: metricsData?.invocations
-            ? Math.round((metricsData.invocations || 0) - (metricsData.errors || 0))
-            : successLogs,
-          errorCount: metricsData?.errors ?? errorLogs,
-          memory: fnData?.memory || fnData?.memoryMb || 128,
-          // Include recent executions for time-series
-          recentExecutions: metricsData?.recentExecutions || []
-        };
-
-        // Generate time-series data from recent executions
-        const executions = metricsData?.recentExecutions || [];
-        if (executions.length > 0) {
-          // Group by minute and create time-series
-          const timeMap = new Map<string, { count: number; totalDuration: number }>();
-
-          executions.forEach((exec: any) => {
-            if (!exec.timestamp) return;
-            const date = new Date(exec.timestamp);
-            const timeKey = date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-
-            if (!timeMap.has(timeKey)) {
-              timeMap.set(timeKey, { count: 0, totalDuration: 0 });
-            }
-            const entry = timeMap.get(timeKey)!;
-            entry.count += 1;
-            entry.totalDuration += exec.duration || 0;
-          });
-
-          const tsData = Array.from(timeMap.entries())
-            .map(([time, data]) => ({
-              time,
-              invocations: data.count,
-              avgDuration: data.count > 0 ? Math.round(data.totalDuration / data.count) : 0
-            }))
-            .sort((a, b) => a.time.localeCompare(b.time));
-
-          setTimeSeriesData(tsData);
-        }
-
-        setFunctionItem(fnData);
-        setMetrics(uiMetrics);
-        setLogs(validLogs);
-        setSystemStatus(sysData);
-      } catch (error) {
-        console.error('Failed to load function details:', error);
-      } finally {
-        setLoading(false);
+        setTimeSeriesData(tsData);
       }
-    }
 
+      setFunctionItem(fnData);
+      setMetrics(uiMetrics);
+      setLogs(validLogs);
+      setSystemStatus(sysData);
+    } catch (error) {
+      console.error('Failed to load function details:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadData();
 
     // Auto refresh every 5 seconds if enabled
@@ -277,7 +277,8 @@ export default function FunctionDetailPage() {
         diskRead: 0,
         diskWrite: 0,
         optimizationTip: result.optimizationTip,
-        estimatedSavings: result.estimatedSavings
+        estimatedSavings: result.estimatedSavings,
+        recommendedMemoryMb: result.recommendedMemoryMb
       });
 
       // Trigger success alert
@@ -405,6 +406,27 @@ export default function FunctionDetailPage() {
   };
 
   const analysis = testResult ? getAutoTunerAnalysis() : null;
+
+  const handleApplyRecommendation = async () => {
+    if (!id || !testResult?.recommendedMemoryMb) return;
+
+    try {
+      if (!confirm(`메모리를 ${testResult.recommendedMemoryMb}MB로 변경하시겠습니까?`)) return;
+
+      await functionApi.updateFunction(id, {
+        memory: testResult.recommendedMemoryMb
+      });
+
+      setShowOptimizationToast(true);
+      setTimeout(() => setShowOptimizationToast(false), 3000);
+
+      // Refresh Data
+      loadData();
+    } catch (error) {
+      console.error("Apply Failed", error);
+      alert("설정 적용에 실패했습니다.");
+    }
+  };
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-gray-100">
@@ -1502,16 +1524,15 @@ export default function FunctionDetailPage() {
                               <p className="text-green-800 mb-3">
                                 Auto-Tuner가 분석한 최적값을 적용하면 <strong>월 ${(analysis.savings * 0.07).toFixed(2)}</strong>를 절약할 수 있습니다.
                               </p>
-                              <button
-                                onClick={() => {
-                                  setShowOptimizationToast(true);
-                                  setTimeout(() => setShowOptimizationToast(false), 3000);
-                                }}
-                                className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold rounded-xl hover:shadow-lg transition-all whitespace-nowrap cursor-pointer flex items-center gap-2"
-                              >
-                                <i className="ri-magic-line text-xl"></i>
-                                최적값 자동 적용
-                              </button>
+                              {testResult.recommendedMemoryMb && (
+                                <button
+                                  onClick={handleApplyRecommendation}
+                                  className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold rounded-xl hover:shadow-lg transition-all whitespace-nowrap cursor-pointer flex items-center gap-2"
+                                >
+                                  <i className="ri-magic-line text-xl"></i>
+                                  최적값 ({testResult.recommendedMemoryMb}MB) 자동 적용
+                                </button>
+                              )}
                             </div>
                             <div className="ml-6 text-center">
                               <div className="text-4xl font-black text-green-600 mb-1">{analysis.savings}%</div>
