@@ -418,8 +418,8 @@ export default function FunctionDetailPage() {
   const handleApplyRecommendation = async () => {
     if (!id || !testResult) return;
 
-    // Use same fallback logic as button render
-    const recMem = testResult.recommendedMemoryMb || Math.max(Math.ceil(testResult.memoryUsed * 1.5), 16);
+    // Use same fallback logic as button render (2.0x buffer, min 32MB)
+    const recMem = testResult.recommendedMemoryMb || Math.max(Math.ceil(testResult.memoryUsed * 2.0), 32);
 
     if (recMem >= testResult.memoryAllocated) return; // No savings possible
 
@@ -1494,7 +1494,7 @@ export default function FunctionDetailPage() {
 
                         {/* Apply Optimization or Already Optimized */}
                         {(() => {
-                          const recMem = testResult.recommendedMemoryMb || Math.max(Math.ceil(testResult.memoryUsed * 1.5), 16);
+                          const recMem = testResult.recommendedMemoryMb || Math.max(Math.ceil(testResult.memoryUsed * 2.0), 32);
                           const canOptimize = recMem < testResult.memoryAllocated;
 
                           return canOptimize ? (
