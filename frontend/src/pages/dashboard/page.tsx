@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -129,6 +129,34 @@ export default function DashboardPage() {
     return texts[status] || status;
   };
 
+  // Cost Efficiency Calculation (AWS Lambda Pricing)
+  // Rate: ~$0.0000166667 per GB-second (~$0.00001667 per MB-ms / 1000)
+  const costEfficiency = useMemo(() => {
+    if (functions.length === 0) {
+      return { originalCost: 0, optimizedCost: 0, savings: 0, score: 0 };
+    }
+
+    const RATE_PER_GB_SECOND = 0.0000166667;
+
+    let originalCost = 0;
+    let optimizedCost = 0;
+
+    functions.forEach(fn => {
+      const invocations = fn.invocations || 0;
+      const durationSec = (fn.avgDuration || 0) / 1000; // ms to seconds
+      const allocatedGb = (fn.memory || 128) / 1024; // MB to GB
+      const actualGb = Math.max(0.032, allocatedGb * 0.25); // Assume 25% actual usage (min 32MB)
+
+      originalCost += invocations * allocatedGb * durationSec * RATE_PER_GB_SECOND;
+      optimizedCost += invocations * actualGb * durationSec * RATE_PER_GB_SECOND;
+    });
+
+    const savings = Math.max(0, originalCost - optimizedCost);
+    const score = originalCost > 0 ? Math.min(100, Math.round((savings / originalCost) * 100 + 75)) : 0;
+
+    return { originalCost, optimizedCost, savings, score };
+  }, [functions]);
+
   const [systemStatus, setSystemStatus] = useState<any>(null);
   const [showPoolModal, setShowPoolModal] = useState(false);
 
@@ -217,14 +245,14 @@ export default function DashboardPage() {
                     <i className="ri-money-dollar-circle-line text-2xl text-green-600"></i>
                   </div>
                   <div className="flex items-center gap-1 px-2 py-1 bg-green-50 rounded-full">
-                    <span className="text-xs font-bold text-green-700">92</span>
+                    <span className="text-xs font-bold text-green-700">{costEfficiency.score}</span>
                     <span className="text-xs text-green-600">점</span>
                   </div>
                 </div>
-                <div className="text-3xl font-bold text-gray-900 mb-1">$24.50</div>
+                <div className="text-3xl font-bold text-gray-900 mb-1">${costEfficiency.optimizedCost.toFixed(2)}</div>
                 <div className="text-sm text-green-600 font-semibold flex items-center gap-1">
                   <i className="ri-arrow-down-line"></i>
-                  Saved $12.00
+                  Saved ${costEfficiency.savings.toFixed(2)}
                 </div>
                 <div className="text-xs text-gray-500 mt-1">Cost Efficiency</div>
               </div>
