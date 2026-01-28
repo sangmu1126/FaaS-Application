@@ -46,6 +46,54 @@ export default function MetricsPage() {
     // debugInfo removed - no longer needed
     const prevMetricsRef = useRef({ totalRequests: 0, accumulatedDuration: 0 });
 
+    // Terminal State
+    const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
+    const [isTestRunning, setIsTestRunning] = useState(false);
+    const terminalRef = useRef<HTMLDivElement>(null);
+
+    // Load Test Handler
+    const handleStartLoadTest = async () => {
+        setIsTestRunning(true);
+        setTerminalLogs(['$ Initializing Virtual Users...', '$ Connecting to Load Generator...']);
+
+        try {
+            const token = localStorage.getItem('api_key') || 'test-api-key';
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/debug/loadtest`, {
+                method: 'POST',
+                headers: { 'x-api-key': token }
+            });
+
+            const reader = response.body?.getReader();
+            const decoder = new TextDecoder();
+
+            if (reader) {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const text = decoder.decode(value);
+                    const lines = text.split('\n').filter(Boolean);
+
+                    setTerminalLogs(prev => {
+                        const newLogs = [...prev, ...lines];
+                        return newLogs.slice(-50); // Keep last 50 lines
+                    });
+
+                    // Scroll to bottom
+                    if (terminalRef.current) {
+                        terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+                    }
+                }
+            }
+        } catch (error) {
+            setTerminalLogs(prev => [...prev, '❌ Connection Failed: ' + String(error)]);
+        } finally {
+            setIsTestRunning(false);
+        }
+    };
+
+    // Parse Prometheus text format
+
     // Parse Prometheus text format
     const parsePrometheusMetrics = (text: string) => {
         const lines = text.split('\n');
@@ -266,51 +314,69 @@ export default function MetricsPage() {
                         </div>
 
                         {/* Stats Overview */}
+                        {/* Stats Overview */}
+                        {/* Stats Overview */}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-purple-100 shadow-sm">
+                            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-purple-100 shadow-sm group hover:border-purple-300 transition-colors relative" title="Includes data from deleted functions">
+                                <div className="absolute top-2 right-2 text-purple-200">
+                                    <i className="ri-history-line"></i>
+                                </div>
                                 <div className="flex items-center gap-4">
                                     <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-purple-200 rounded-xl flex items-center justify-center">
                                         <i className="ri-bar-chart-box-line text-2xl text-purple-600"></i>
                                     </div>
                                     <div>
                                         <div className="text-2xl font-bold text-gray-900">{totalStats.totalInvocations.toLocaleString()}</div>
-                                        <div className="text-sm text-gray-600">Total Invocations</div>
+                                        <div className="text-sm text-gray-600 font-medium">Total Invocations</div>
+                                        <div className="text-xs text-purple-400 font-mono">(Cumulative)</div>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100 shadow-sm">
+                            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100 shadow-sm group hover:border-blue-300 transition-colors relative" title="Includes data from deleted functions">
+                                <div className="absolute top-2 right-2 text-blue-200">
+                                    <i className="ri-history-line"></i>
+                                </div>
                                 <div className="flex items-center gap-4">
                                     <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl flex items-center justify-center">
                                         <i className="ri-timer-line text-2xl text-blue-600"></i>
                                     </div>
                                     <div>
                                         <div className="text-2xl font-bold text-gray-900">{totalStats.avgResponseTime}ms</div>
-                                        <div className="text-sm text-gray-600">Avg Response Time</div>
+                                        <div className="text-sm text-gray-600 font-medium">Avg Response Time</div>
+                                        <div className="text-xs text-blue-400 font-mono">(Global)</div>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-green-100 shadow-sm">
+                            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-green-100 shadow-sm group hover:border-green-300 transition-colors relative" title="Includes data from deleted functions">
+                                <div className="absolute top-2 right-2 text-green-200">
+                                    <i className="ri-history-line"></i>
+                                </div>
                                 <div className="flex items-center gap-4">
                                     <div className="w-12 h-12 bg-gradient-to-br from-green-100 to-green-200 rounded-xl flex items-center justify-center">
                                         <i className="ri-check-double-line text-2xl text-green-600"></i>
                                     </div>
                                     <div>
                                         <div className="text-2xl font-bold text-gray-900">{totalStats.successRate}%</div>
-                                        <div className="text-sm text-gray-600">Success Rate</div>
+                                        <div className="text-sm text-gray-600 font-medium">Success Rate</div>
+                                        <div className="text-xs text-green-400 font-mono">(Global)</div>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-amber-100 shadow-sm">
+                            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-amber-100 shadow-sm group hover:border-amber-300 transition-colors relative" title="Currently deployed functions">
+                                <div className="absolute top-2 right-2 text-amber-200">
+                                    <i className="ri-flashlight-line"></i>
+                                </div>
                                 <div className="flex items-center gap-4">
                                     <div className="w-12 h-12 bg-gradient-to-br from-amber-100 to-amber-200 rounded-xl flex items-center justify-center">
                                         <i className="ri-server-line text-2xl text-amber-600"></i>
                                     </div>
                                     <div>
                                         <div className="text-2xl font-bold text-gray-900">{totalStats.activeWorkers}</div>
-                                        <div className="text-sm text-gray-600">Registered Functions</div>
+                                        <div className="text-sm text-gray-600 font-medium">Active Functions</div>
+                                        <div className="text-xs text-amber-400 font-mono">(Live)</div>
                                     </div>
                                 </div>
                             </div>
@@ -475,9 +541,54 @@ export default function MetricsPage() {
                         </div>
 
 
+                        {/* Live Stress Test Terminal */}
+                        <div className="mt-8 bg-[#1E1E1E] rounded-2xl overflow-hidden shadow-xl border border-gray-700">
+                            <div className="bg-[#2D2D2D] px-6 py-3 flex items-center justify-between border-b border-gray-700">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                                    <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                                    <span className="ml-3 text-sm font-mono text-gray-400">root@faas-load-generator:~</span>
+                                </div>
+                                <button
+                                    onClick={handleStartLoadTest}
+                                    disabled={isTestRunning}
+                                    className={`px-4 py-1.5 rounded-lg text-xs font-bold font-mono transition-all ${isTestRunning
+                                        ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                                        : 'bg-green-600 text-white hover:bg-green-500 hover:shadow-lg hover:shawdow-green-500/20'
+                                        }`}
+                                >
+                                    {isTestRunning ? 'RUNNING...' : '▶ START LOAD TEST'}
+                                </button>
+                            </div>
+                            <div
+                                ref={terminalRef}
+                                className="h-64 overflow-y-auto p-6 font-mono text-sm leading-6"
+                                style={{ scrollBehavior: 'smooth' }}
+                            >
+                                {terminalLogs.length === 0 ? (
+                                    <div className="text-gray-500 opacity-50 select-none">
+                                        <div className="mb-2">System Ready...</div>
+                                        <div>Click "START" to simulate high traffic event (50 VU).</div>
+                                    </div>
+                                ) : (
+                                    terminalLogs.map((log, i) => (
+                                        <div key={i} className={`${log.includes('Error') || log.includes('Failed') ? 'text-red-400' :
+                                            log.includes('Success') || log.includes('✅') ? 'text-green-400' :
+                                                log.includes('Starting') ? 'text-blue-400' :
+                                                    'text-gray-300'
+                                            }`}>
+                                            {log}
+                                        </div>
+                                    ))
+                                )}
+                                {isTestRunning && (
+                                    <div className="animate-pulse text-green-500">_</div>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </main>
-                {/* DEBUG SECTION */}
             </div>
         </div>
     );
