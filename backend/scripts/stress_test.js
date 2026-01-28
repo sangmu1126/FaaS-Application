@@ -1,8 +1,8 @@
 import http from 'http';
 
 const API_KEY = process.env.INFRA_API_KEY || 'test-api-key';
-const HOST = 'localhost';
-const PORT = 8080;
+const HOST = process.env.LOAD_TEST_TARGET_HOST || 'localhost';
+const PORT = process.env.LOAD_TEST_TARGET_PORT || 8080;
 const CONCURRENCY = 200;
 const DURATION_SEC = 30;
 
@@ -29,6 +29,15 @@ function makeRequest(path, method = 'GET', body = null) {
             res.on('end', () => resolve({ status: res.statusCode, body: data }));
         });
 
+        req.on('timeout', () => {
+            req.destroy();
+            resolve({ status: 408, body: 'Timeout' });
+        });
+
+        req.on('error', (e) => resolve({ status: 500, body: e.message }));
+
+        req.setTimeout(2000); // 2s Timeout
+
         req.on('error', (e) => reject(e));
         if (body) req.write(JSON.stringify(body));
         req.end();
@@ -49,25 +58,31 @@ async function run() {
 
     // 1. Get Function
     console.log("🔍 Finding target function...");
-    let functionId = null;
-    let functionName = 'Unknown';
+    let functionId = process.env.TARGET_FUNCTION_ID || null;
+    let functionName = 'Target Provided by Env';
 
     try {
-        const res = await makeRequest('/functions');
-        if (res.status !== 200) {
-            // Try without /api prefix if failed? 
-            // For now assume /api is correct mount point.
-            throw new Error(`Status ${res.status}`);
-        }
-        const funcs = JSON.parse(res.body);
-        if (funcs.length > 0) {
-            functionId = funcs[0].functionId;
-            functionName = funcs[0].name;
-            console.log(`✅ Target found: \x1b[33m${functionName}\x1b[0m (${functionId})`);
+        if (!functionId) {
+            const res = await makeRequest('/functions');
+            if (res.status !== 200) {
+                // Try without /api prefix if failed? 
+                // For now assume /api is correct mount point.
+                throw new Error(`Status ${res.status}`);
+            }
+            const funcs = JSON.parse(res.body);
+            if (funcs.length > 0) {
+                // In Capacity Mode, verify if we found a suitable temp function if possible, but for now grab first
+                functionId = funcs[0].functionId;
+                functionName = funcs[0].name;
+            } else {
+                console.log("❌ No functions found. Please deploy a function first.");
+                process.exit(1);
+            }
         } else {
-            console.log("❌ No functions found. Please deploy a function first.");
-            process.exit(1);
+            // Optional: verify the provided ID exists
+            functionName = `Specific Target (${functionId.substring(0, 8)}...)`;
         }
+        console.log(`✅ Target found: \x1b[33m${functionName}\x1b[0m`);
     } catch (e) {
         console.log("❌ Failed to fetch functions: " + e.message);
         process.exit(1);
@@ -84,7 +99,9 @@ async function run() {
     const displayInterval = setInterval(() => {
         const elapsed = (Date.now() - startTime) / 1000;
         const rps = (requestsSent / elapsed).toFixed(1);
-        console.log(`[${elapsed.toFixed(1)}s] Requests: ${requestsSent} | \x1b[32mAccepted: ${successCount}\x1b[0m | Failed: ${failCount} | RPS: \x1b[36m${rps}\x1b[0m`);
+        const totalHandled = successCount + failCount;
+        const successRate = totalHandled > 0 ? ((successCount / totalHandled) * 100).toFixed(1) : '0.0';
+        console.log(`[${elapsed.toFixed(1)}s] Reqs: ${requestsSent} | \x1b[32mOK: ${successCount}\x1b[0m | ERR: ${failCount} | \x1b[35mSR: ${successRate}%\x1b[0m | RPS: \x1b[36m${rps}\x1b[0m`);
     }, 500); // Faster updates
 
     const attackLoop = async () => {
@@ -118,8 +135,11 @@ async function run() {
 
     console.log("\n=================================");
     console.log("\x1b[32m✅ Load Test Completed\x1b[0m");
-    console.log(`Total Requests: ${requestsSent}`);
-    console.log(`Success Rate: ${((successCount / requestsSent) * 100).toFixed(1)}%`);
+    const totalHandled = successCount + failCount;
+    const finalSuccessRate = totalHandled > 0 ? ((successCount / totalHandled) * 100).toFixed(1) : '0.0';
+    console.log(`Total Requests Sent: ${requestsSent}`);
+    console.log(`Total Responses Received: ${totalHandled}`);
+    console.log(`Success Rate (Independent Trials): \x1b[32m${finalSuccessRate}%\x1b[0m`);
     console.log("=================================");
 }
 
