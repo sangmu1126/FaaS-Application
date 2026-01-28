@@ -2,8 +2,45 @@ import { proxyService } from '../services/proxyService.js';
 import { telemetryService } from '../services/telemetryService.js';
 import { slackService } from '../services/slackService.js';
 import { logger } from '../utils/logger.js';
+import { spawn } from 'child_process';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const gatewayController = {
+
+    // POST /debug/loadtest
+    startLoadTest(req, res) {
+        logger.info("Starting Load Test Demo...");
+
+        // Stream output as text
+        res.setHeader('Content-Type', 'text/plain');
+        res.setHeader('Transfer-Encoding', 'chunked');
+
+        const scriptPath = path.join(__dirname, '../../scripts/stress_test.js');
+
+        // Pass current environment + API Key to child process
+        const env = {
+            ...process.env,
+            INFRA_API_KEY: process.env.INFRA_API_KEY || 'test-api-key'
+        };
+
+        const child = spawn('node', [scriptPath], { env });
+
+        child.stdout.on('data', (data) => {
+            res.write(data);
+        });
+
+        child.stderr.on('data', (data) => {
+            res.write(data);
+        });
+
+        child.on('close', (code) => {
+            res.write(`\nProcess exited with code ${code}`);
+            res.end();
+        });
+    },
 
     // GET /functions
     async listFunctions(req, res) {
@@ -94,8 +131,11 @@ export const gatewayController = {
         if (!functionId) return res.status(400).json({ error: 'functionId required' });
 
         try {
-            // 1. Notify Start
-            const threadTs = await slackService.notifyStart(functionId, inputData);
+            // 1. Notify Start (Skip for Load Tests)
+            let threadTs = null;
+            if (!inputData?.test) {
+                threadTs = await slackService.notifyStart(functionId, inputData);
+            }
 
             // 2. Record Run
             await telemetryService.recordRun(functionId);
@@ -114,8 +154,10 @@ export const gatewayController = {
             const isSuccess = !result.error && result.status !== 'ERROR';
             await telemetryService.recordResult(functionId, isSuccess);
 
-            // Async notification
-            slackService.notifyResult(threadTs, result);
+            // Async notification (Skip for Load Tests)
+            if (threadTs && !inputData?.test) {
+                slackService.notifyResult(threadTs, result);
+            }
 
             res.json(result);
         } catch (error) {
