@@ -49,6 +49,8 @@ export default function MetricsPage() {
     // Terminal State
     const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
     const [isTestRunning, setIsTestRunning] = useState(false);
+    const [testMode, setTestMode] = useState<'capacity' | 'stress'>('capacity');
+    const [showInfoModal, setShowInfoModal] = useState(false);
     const terminalRef = useRef<HTMLDivElement>(null);
 
     // Load Test Handler
@@ -89,6 +91,21 @@ export default function MetricsPage() {
             setTerminalLogs(prev => [...prev, '❌ Connection Failed: ' + String(error)]);
         } finally {
             setIsTestRunning(false);
+        }
+    };
+
+    // Stop Load Test Handler
+    const handleStopLoadTest = async () => {
+        try {
+            const token = localStorage.getItem('api_key') || 'test-api-key';
+            await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/loadtest/stop`, {
+                method: 'POST',
+                headers: { 'x-api-key': token }
+            });
+            setTerminalLogs(prev => [...prev, '⛔ Load Test STOPPED by user']);
+            setIsTestRunning(false);
+        } catch (error) {
+            setTerminalLogs(prev => [...prev, '❌ Failed to stop: ' + String(error)]);
         }
     };
 
@@ -541,35 +558,88 @@ export default function MetricsPage() {
                         </div>
 
 
-                        {/* Live Stress Test Terminal */}
+                        {/* Live Load Test Terminal */}
                         <div className="mt-8 bg-[#1E1E1E] rounded-2xl overflow-hidden shadow-xl border border-gray-700">
-                            <div className="bg-[#2D2D2D] px-6 py-3 flex items-center justify-between border-b border-gray-700">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                                    <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                                    <span className="ml-3 text-sm font-mono text-gray-400">root@faas-load-generator:~</span>
+                            {/* Panel Header & Controls */}
+                            <div className="bg-[#2D2D2D] px-6 py-4 border-b border-gray-700">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                                        <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                                        <span className="ml-3 text-sm font-mono text-gray-400">root@faas-load-generator:~</span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => setShowInfoModal(true)}
+                                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-400 hover:text-white transition-colors"
+                                            title="Load Test Info"
+                                        >
+                                            <i className="ri-information-line text-lg"></i>
+                                        </button>
+                                        {isTestRunning && (
+                                            <button
+                                                onClick={handleStopLoadTest}
+                                                className="px-4 py-1.5 rounded-lg text-xs font-bold font-mono bg-red-600 text-white hover:bg-red-500 transition-all shadow-lg animate-pulse"
+                                            >
+                                                ⏹ STOP TEST
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
-                                <button
-                                    onClick={handleStartLoadTest}
-                                    disabled={isTestRunning}
-                                    className={`px-4 py-1.5 rounded-lg text-xs font-bold font-mono transition-all ${isTestRunning
-                                        ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                                        : 'bg-green-600 text-white hover:bg-green-500 hover:shadow-lg hover:shawdow-green-500/20'
-                                        }`}
-                                >
-                                    {isTestRunning ? 'RUNNING...' : '▶ START LOAD TEST'}
-                                </button>
+
+                                {/* Dual Mode Controls */}
+                                <div className="flex flex-col md:flex-row gap-4 items-end md:items-center justify-between bg-[#1E1E1E] p-3 rounded-lg border border-gray-800">
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => setTestMode('capacity')}
+                                            disabled={isTestRunning}
+                                            className={`px-4 py-2 rounded-md text-xs font-bold transition-all ${testMode === 'capacity'
+                                                ? 'bg-blue-600 text-white shadow-lg'
+                                                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                                                }`}
+                                        >
+                                            ⚡ CAPACITY PLANNING
+                                            <span className="block text-[10px] font-normal opacity-70 mt-0.5">Max Throughput (Auto-Deploy)</span>
+                                        </button>
+                                        <button
+                                            onClick={() => setTestMode('stress')}
+                                            disabled={isTestRunning}
+                                            className={`px-4 py-2 rounded-md text-xs font-bold transition-all ${testMode === 'stress'
+                                                ? 'bg-orange-600 text-white shadow-lg'
+                                                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                                                }`}
+                                        >
+                                            🏋️ RESILIENCY TESTING
+                                            <span className="block text-[10px] font-normal opacity-70 mt-0.5">Real-world Stress (Targeted)</span>
+                                        </button>
+                                    </div>
+
+                                    <div className="flex gap-3 items-center">
+                                        <button
+                                            onClick={handleStartLoadTest}
+                                            disabled={isTestRunning}
+                                            className={`px-6 py-2 rounded-md text-sm font-bold font-mono transition-all flex items-center gap-2 ${isTestRunning
+                                                ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                                                : 'bg-green-600 text-white hover:bg-green-500 hover:shadow-green-500/20 shadow-lg'
+                                                }`}
+                                        >
+                                            {isTestRunning ? 'RUNNING...' : '▶ START TRAFFIC'}
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
+
+                            {/* Terminal Output */}
                             <div
                                 ref={terminalRef}
                                 className="h-64 overflow-y-auto p-6 font-mono text-sm leading-6"
                                 style={{ scrollBehavior: 'smooth' }}
                             >
                                 {terminalLogs.length === 0 ? (
-                                    <div className="text-gray-500 opacity-50 select-none">
-                                        <div className="mb-2">System Ready...</div>
-                                        <div>Click "START" to simulate high traffic event (50 VU).</div>
+                                    <div className="text-gray-500 opacity-50 select-none flex flex-col items-center justify-center h-full gap-2">
+                                        <div className="text-xl">Waiting for command...</div>
+                                        <div className="text-xs">Select a mode and click START to begin load simulation.</div>
                                     </div>
                                 ) : (
                                     terminalLogs.map((log, i) => (
@@ -590,6 +660,75 @@ export default function MetricsPage() {
                     </div>
                 </main>
             </div>
+            {/* Load Test Info Modal */}
+            {showInfoModal && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-6">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden animate-fade-in-up">
+                        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-gray-50 to-white">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                                    <i className="ri-speed-line text-xl text-blue-600"></i>
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-900">Load Testing Modes</h3>
+                                    <p className="text-xs text-gray-500">Understanding performance validation strategies</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setShowInfoModal(false)}
+                                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                                <i className="ri-close-line text-xl"></i>
+                            </button>
+                        </div>
+                        <div className="p-6 grid gap-6">
+                            {/* Capacity Planning */}
+                            <div className="flex gap-4 p-4 rounded-xl bg-blue-50 border border-blue-100">
+                                <div className="mt-1">
+                                    <i className="ri-flashlight-fill text-2xl text-blue-600"></i>
+                                </div>
+                                <div>
+                                    <h4 className="text-base font-bold text-gray-900 mb-1">Capacity Planning</h4>
+                                    <p className="text-sm text-gray-600 mb-2">
+                                        Designed to measure the <strong>Maximum Ingress Throughput</strong> of the Gateway and Infrastructure.
+                                    </p>
+                                    <ul className="text-xs text-gray-500 space-y-1 list-disc list-inside bg-white p-3 rounded-lg border border-blue-100">
+                                        <li><strong>Function:</strong> Lightweight <code>Hello World</code> (Python)</li>
+                                        <li><strong>Goal:</strong> Verify Peak RPS (Requests Per Second) acceptance.</li>
+                                        <li><strong>Use Case:</strong> Architectural validation & Gateway benchmarking.</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            {/* Resiliency Testing */}
+                            <div className="flex gap-4 p-4 rounded-xl bg-orange-50 border border-orange-100">
+                                <div className="mt-1">
+                                    <i className="ri-fire-fill text-2xl text-orange-600"></i>
+                                </div>
+                                <div>
+                                    <h4 className="text-base font-bold text-gray-900 mb-1">Resiliency Testing</h4>
+                                    <p className="text-sm text-gray-600 mb-2">
+                                        Designed to stress-test <strong>Worker Stability</strong> and auto-scaling mechanisms under heavy load.
+                                    </p>
+                                    <ul className="text-xs text-gray-500 space-y-1 list-disc list-inside bg-white p-3 rounded-lg border border-orange-100">
+                                        <li><strong>Function:</strong> CPU-intensive <code>Factorial Calculation</code> (Python)</li>
+                                        <li><strong>Goal:</strong> Verify system stability, timeouts, and resource isolation.</li>
+                                        <li><strong>Use Case:</strong> Application-level stress testing.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+                            <button
+                                onClick={() => setShowInfoModal(false)}
+                                className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
+                            >
+                                Got it
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
