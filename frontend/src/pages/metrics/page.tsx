@@ -184,26 +184,36 @@ export default function MetricsPage() {
                         avgDuration: dashboardStats?.avgResponseTime || prometheusData.avgDuration || 0
                     };
 
+                    // Reconstruct total duration (approx) from avg * count
+                    const currentTotalDuration = latestMetrics.totalRequests * latestMetrics.avgDuration;
+
                     const prev = prevMetricsRef.current;
                     let deltaRequests = 0;
+                    let windowedAvgDuration = 0;
 
                     // Only calculate delta if we have a previous value (not first load)
                     if (prev.totalRequests > 0) {
                         deltaRequests = Math.max(0, latestMetrics.totalRequests - prev.totalRequests);
+
+                        const deltaDuration = Math.max(0, currentTotalDuration - prev.accumulatedDuration);
+
+                        if (deltaRequests > 0) {
+                            windowedAvgDuration = Math.round(deltaDuration / deltaRequests);
+                        }
                     }
 
                     // Update Ref
                     if (latestMetrics.totalRequests > 0) {
                         prevMetricsRef.current = {
                             totalRequests: latestMetrics.totalRequests,
-                            accumulatedDuration: 0
+                            accumulatedDuration: currentTotalDuration
                         };
                     }
 
                     const newPoint = {
                         time: timeLabel,
-                        invocations: deltaRequests,
-                        avgDuration: latestMetrics.avgDuration
+                        invocations: deltaRequests, // Throughput (Requests per 5s)
+                        avgDuration: windowedAvgDuration // Real-time Avg (Windowed)
                     };
                     const updated = [...prevSeries, newPoint];
                     return updated.length > 12 ? updated.slice(updated.length - 12) : updated;
