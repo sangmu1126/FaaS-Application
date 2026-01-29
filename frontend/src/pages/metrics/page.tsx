@@ -62,7 +62,11 @@ export default function MetricsPage() {
             const token = localStorage.getItem('api_key') || 'test-api-key';
             const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/debug/loadtest`, {
                 method: 'POST',
-                headers: { 'x-api-key': token }
+                headers: {
+                    'x-api-key': token,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ mode: testMode })
             });
 
             const reader = response.body?.getReader();
