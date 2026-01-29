@@ -21,7 +21,10 @@ export const gatewayController = {
             return res.status(409).json({ error: 'Load test already running', pid: loadTestStatus.pid });
         }
 
-        const { mode = 'capacity', duration = 30, concurrency = 200 } = req.body;
+        const { mode = 'capacity', duration = 10 } = req.body;
+        // Mode-specific VU defaults: Resiliency=10 (stable), Capacity=200 (stress)
+        const defaultConcurrency = mode === 'capacity' ? 200 : 5;
+        const concurrency = req.body.concurrency || defaultConcurrency;
         logger.info(`Starting Load Test (${mode} mode)...`);
 
         // Helper: Stream Output
@@ -110,21 +113,25 @@ export const gatewayController = {
                 LOAD_TEST_CONCURRENCY: concurrency.toString()
             };
 
-            // Determine Target (Capacity Mode = Direct to Controller for Pure Infra metrics)
+            // Determine Target (Always use Controller directly for load tests)
             let loadTestHost = 'localhost';
             let loadTestPort = '8080';
 
-            if (mode === 'capacity' && process.env.AWS_ALB_URL) {
+            if (process.env.AWS_ALB_URL) {
                 try {
                     const url = new URL(process.env.AWS_ALB_URL);
                     loadTestHost = url.hostname;
                     loadTestPort = url.port || (url.protocol === 'https:' ? '443' : '80');
-                    stream(`ℹ️  Targeting Controller directly: ${loadTestHost}:${loadTestPort} (Bypassing Gateway)`);
+                    if (mode === 'capacity') {
+                        stream(`ℹ️  Targeting Controller directly: ${loadTestHost}:${loadTestPort} (Bypassing Gateway)`);
+                    } else {
+                        stream(`ℹ️  Targeting Controller: ${loadTestHost}:${loadTestPort} (Full Stack via SQS)`);
+                    }
                 } catch (e) {
-                    stream(`⚠️  Could not parse AWS_ALB_URL, falling back to Gateway: ${e.message}`);
+                    stream(`⚠️  Could not parse AWS_ALB_URL, falling back to localhost: ${e.message}`);
                 }
             } else {
-                stream(`ℹ️  Targeting Gateway: localhost:8080`);
+                stream(`ℹ️  Targeting localhost:8080 (AWS_ALB_URL not set)`);
             }
 
             const child = spawn('node', [scriptPath], {
