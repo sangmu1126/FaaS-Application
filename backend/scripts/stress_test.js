@@ -3,25 +3,23 @@ import http from 'http';
 const API_KEY = process.env.INFRA_API_KEY || 'test-api-key';
 const HOST = process.env.LOAD_TEST_TARGET_HOST || 'localhost';
 const PORT = process.env.LOAD_TEST_TARGET_PORT || 8080;
-const CONCURRENCY = 200;
-const DURATION_SEC = 30;
+const CONCURRENCY = parseInt(process.env.LOAD_TEST_CONCURRENCY || '200');
+const DURATION_SEC = parseInt(process.env.LOAD_TEST_DURATION || '30');
+const functionId = process.env.TARGET_FUNCTION_ID || '1';
 
 function makeRequest(path, method = 'GET', body = null) {
     return new Promise((resolve, reject) => {
         const options = {
             hostname: HOST,
             port: PORT,
-            path: '/api' + path, // Gateway prefix check? Route says /functions, but app might mount routes at /api.
+            path: '/api' + path,
             method: method,
             headers: {
                 'x-api-key': API_KEY,
                 'Content-Type': 'application/json',
-                'x-async': 'true' // Fire-and-Forget Mode
+                'x-async': 'true'
             }
         };
-
-        // Note: Check if app.js mounts routes at / or /api. 
-        // Assuming /api based on previous checks.
 
         const req = http.request(options, (res) => {
             let data = '';
@@ -35,80 +33,35 @@ function makeRequest(path, method = 'GET', body = null) {
         });
 
         req.on('error', (e) => resolve({ status: 500, body: e.message }));
+        req.setTimeout(2000);
 
-        req.setTimeout(2000); // 2s Timeout
-
-        req.on('error', (e) => reject(e));
         if (body) req.write(JSON.stringify(body));
         req.end();
     });
 }
 
-// Ensure /api prefix handling
-async function checkApiPrefix() {
-    try {
-        await makeRequest('/health'); // Try /api/health
-    } catch (e) {
-        // Fallback?
-    }
-}
-
 async function run() {
-    console.log(`\x1b[36m⚡ Starting Load Test: ${CONCURRENCY} Virtual Users\x1b[0m`);
+    console.log(`🚀 Starting Load Test: ${CONCURRENCY} VUs for ${DURATION_SEC}s`);
+    console.log(`📍 Target: ${HOST}:${PORT}/api/run (functionId: ${functionId})`);
+    console.log('');
 
-    // 1. Get Function
-    console.log("🔍 Finding target function...");
-    let functionId = process.env.TARGET_FUNCTION_ID || null;
-    let functionName = 'Target Provided by Env';
-
-    try {
-        if (!functionId) {
-            const res = await makeRequest('/functions');
-            if (res.status !== 200) {
-                // Try without /api prefix if failed? 
-                // For now assume /api is correct mount point.
-                throw new Error(`Status ${res.status}`);
-            }
-            const funcs = JSON.parse(res.body);
-            if (funcs.length > 0) {
-                // In Capacity Mode, verify if we found a suitable temp function if possible, but for now grab first
-                functionId = funcs[0].functionId;
-                functionName = funcs[0].name;
-            } else {
-                console.log("❌ No functions found. Please deploy a function first.");
-                process.exit(1);
-            }
-        } else {
-            // Optional: verify the provided ID exists
-            functionName = `Specific Target (${functionId.substring(0, 8)}...)`;
-        }
-        console.log(`✅ Target found: \x1b[33m${functionName}\x1b[0m`);
-    } catch (e) {
-        console.log("❌ Failed to fetch functions: " + e.message);
-        process.exit(1);
-    }
-
-    // 2. Hammer Time (Async Machine Gun)
-    console.log(`🚀 Sending Async Traffic... (${CONCURRENCY} VU / ${DURATION_SEC}s)`);
-
-    const startTime = Date.now();
     let requestsSent = 0;
     let successCount = 0;
     let failCount = 0;
+    const startTime = Date.now();
 
     const displayInterval = setInterval(() => {
         const elapsed = (Date.now() - startTime) / 1000;
         const rps = (requestsSent / elapsed).toFixed(1);
         const totalHandled = successCount + failCount;
         const successRate = totalHandled > 0 ? ((successCount / totalHandled) * 100).toFixed(1) : '0.0';
-        console.log(`[${elapsed.toFixed(1)}s] Reqs: ${requestsSent} | \x1b[32mOK: ${successCount}\x1b[0m | ERR: ${failCount} | \x1b[35mSR: ${successRate}%\x1b[0m | RPS: \x1b[36m${rps}\x1b[0m`);
-    }, 500); // Faster updates
+        console.log(`[${elapsed.toFixed(1)}s] Reqs: ${requestsSent} | OK: ${successCount} | ERR: ${failCount} | SR: ${successRate}% | RPS: ${rps}`);
+    }, 500);
 
     const attackLoop = async () => {
         while ((Date.now() - startTime) < DURATION_SEC * 1000) {
             try {
                 requestsSent++;
-                // Async Request (Fire independent of response time)
                 makeRequest('/run', 'POST', {
                     functionId: functionId,
                     inputData: { test: true }
@@ -117,7 +70,6 @@ async function run() {
                     else failCount++;
                 }).catch(() => failCount++);
 
-                // Pure Throughput Mode: minimal wait
                 await new Promise(r => setTimeout(r, 10));
             } catch (e) {
                 failCount++;
@@ -134,12 +86,12 @@ async function run() {
     clearInterval(displayInterval);
 
     console.log("\n=================================");
-    console.log("\x1b[32m✅ Load Test Completed\x1b[0m");
+    console.log("✅ Load Test Completed");
     const totalHandled = successCount + failCount;
     const finalSuccessRate = totalHandled > 0 ? ((successCount / totalHandled) * 100).toFixed(1) : '0.0';
     console.log(`Total Requests Sent: ${requestsSent}`);
     console.log(`Total Responses Received: ${totalHandled}`);
-    console.log(`Success Rate (Independent Trials): \x1b[32m${finalSuccessRate}%\x1b[0m`);
+    console.log(`Success Rate: ${finalSuccessRate}%`);
     console.log("=================================");
 }
 
